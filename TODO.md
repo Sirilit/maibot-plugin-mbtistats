@@ -1,11 +1,23 @@
 # Port checklist
 
-- [ ] 把 analyze.py 改成纯函数，不 import nonebot
-- [ ] 把 transform_render_data.py 搬过来
-- [ ] 把 render.py 改成 build_html，图片交给 ctx.render.html2png
-- [ ] get_group_data 改成 ctx.api.call("adapter.napcat.group.get_group_member_list", ...)
-- [ ] 群成员统计接到 mbti_stats Tool
-- [ ] /mbti Command 和 Tool 共用同一套逻辑
-- [ ] 需要发图时给 manifest 加 send.image / render.html2png 能力
-- [ ] 需要额外 Python 包时写进 manifest dependencies
-- [ ] 用 Docker 里的 MaiBot 实测 /mbti 和自然语言触发
+- [x] 把 analyze.py 改成纯函数，不 import nonebot
+- [x] 把 transform_render_data.py 搬过来
+- [x] 把 render.py 改成 build_html，图片交给 ctx.render.html2png
+- [x] get_group_data 改成 ctx.api.call("adapter.snowluma.group.get_group_member_list", ...)
+- [x] 群成员统计接到 mbti_stats Tool
+- [x] /mbti Command 改成纯提醒 AI，不直接统计
+- [x] /mbti-debug / /mbti_debug 确定性调试命令
+- [x] debug 完成后写回 Maisaka 上下文，让 AI 知道被触发
+- [x] [debug].enabled 控制调试命令
+- [x] 需要发图时给 manifest 加 send.image / render.html2png 能力
+- [x] 加 [plugin] / [daily] / [render] 配置节和 config_version
+- [x] 单文件 HTML：CSS / ECharts / 图片 / JSON 全内联
+- [x] 单例渲染：全局锁 + 同群 single-flight + 异群有界等待
+- [x] daily 循环 + proactive.trigger 提醒 AI
+- [x] 浏览器预览设施（scripts/debug_frontend.py -> debug/preview.html）
+- [x] 容器内安装 Playwright Chromium 并实测宿主渲染
+- [x] 在真实 QQ 测试群用 `/mbti`、`/mbti-debug` 和自然语言各跑一次（用户已实测三条入口，AI 侧体验正常）
+- [x] 历史数据不进 git：`mbtistats/assets/data/` 已 ignore，部署时单独迁移
+- [ ] 确认 SnowLuma 群成员接口返回的 card/nickname 形态
+- [ ] 按需打开 daily.enabled
+- [ ] 决定是否加渲染结果缓存（同数据不重复渲染）

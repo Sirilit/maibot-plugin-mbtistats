@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html style="height: 100%">
+<head>
+    <meta charset="utf-8">
+    <title>__TITLE__</title>
+    <style>
+__STYLE__
+    </style>
+</head>
+<body style="height: 100%; margin: 0">
+    <div class="container" id="mbti-dashboard">
+        <h1>__TITLE__</h1>
+        <div class="meta">
+            __GROUP_NAME__
+            <div class="sep"></div>
+            __TOTAL_COUNT__ 人
+            <div class="sep"></div>
+            机器人开发 By Sirilit &amp; 玛画疼
+            <div class="sep"></div>
+            <span id="timestamp"></span>
+        </div>
+
+        <div class="image-description-section">
+            <div class="image-container">
+                <div id="top-personality-image"></div>
+            </div>
+            <div class="description-container">
+                <div id="top-personality-text"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">「 16 人格类型统计 」</div>
+            <div class="section-row top-charts">
+                <div id="pie-chart-container"></div>
+                <div id="bar-chart-container"></div>
+            </div>
+            <div class="section-row" id="trend-windows-container">
+                <div class="trend-window-card" id="trend-window-week">
+                    <div class="trend-window-title">一周趋势图</div>
+                    <div class="trend-window-row">
+                        <div class="trend-chart-box"><div class="trend-chart-title">16人格数量变化趋势</div><div class="trend-chart-dom" id="trend-week-type16"></div></div>
+                        <div class="trend-chart-box"><div class="trend-chart-title">四色人格历史趋势</div><div class="trend-chart-dom" id="trend-week-type4"></div></div>
+                    </div>
+                </div>
+                <div class="trend-window-card" id="trend-window-month">
+                    <div class="trend-window-title">一月趋势图</div>
+                    <div class="trend-window-row">
+                        <div class="trend-chart-box"><div class="trend-chart-title">16人格数量变化趋势</div><div class="trend-chart-dom" id="trend-month-type16"></div></div>
+                        <div class="trend-chart-box"><div class="trend-chart-title">四色人格历史趋势</div><div class="trend-chart-dom" id="trend-month-type4"></div></div>
+                    </div>
+                </div>
+                <div class="trend-window-card" id="trend-window-year">
+                    <div class="trend-window-title">一年趋势图</div>
+                    <div class="trend-window-row">
+                        <div class="trend-chart-box"><div class="trend-chart-title">16人格数量变化趋势</div><div class="trend-chart-dom" id="trend-year-type16"></div></div>
+                        <div class="trend-chart-box"><div class="trend-chart-title">四色人格历史趋势</div><div class="trend-chart-dom" id="trend-year-type4"></div></div>
+                    </div>
+                </div>
+                <div class="trend-window-card" id="trend-window-all">
+                    <div class="trend-window-title">全历史记录图</div>
+                    <div class="trend-window-row">
+                        <div class="trend-chart-box"><div class="trend-chart-title">16人格数量变化趋势</div><div class="trend-chart-dom" id="trend-all-type16"></div></div>
+                        <div class="trend-chart-box"><div class="trend-chart-title">四色人格历史趋势</div><div class="trend-chart-dom" id="trend-all-type4"></div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="section-row" id="history-table-container"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">「 4 特质统计 」</div>
+            <div class="trait-charts-container">
+                <div class="trait-chart-item"><div id="chart-ei" style="width:100%; height:100%"></div></div>
+                <div class="trait-chart-item"><div id="chart-ns" style="width:100%; height:100%"></div></div>
+                <div class="trait-chart-item"><div id="chart-tf" style="width:100%; height:100%"></div></div>
+                <div class="trait-chart-item"><div id="chart-jp" style="width:100%; height:100%"></div></div>
+            </div>
+            <div id="trait-history-table-container"></div>
+        </div>
+    </div>
+
+    <script>
+window.__MBTI_IMAGES__ = __IMAGE_MAP__;
+window.__MBTI_DATA__ = __DATA_JSON__;
+    </script>
+    <script>
+__ECHARTS_JS__
+    </script>
+    <script>
+__DASHBOARD_JS__
+    </script>
+    <script>
+setupCharts(window.__MBTI_DATA__);
+    </script>
+</body>
+</html>

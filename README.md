@@ -1,67 +1,112 @@
 # maibot-plugin-mbtistats
 
-MaiBot 的 MBTI 群统计插件。当前是**可加载的骨架**：
+MaiBot 的 MBTI 群统计插件：读取群成员群名片/昵称里声明的 MBTI，更新本群历史快照，渲染带趋势图的看板，并把图片交给 AI 决定如何发送。
 
-- `_manifest.json` 已按 Manifest v2 填好；
-- `plugin.py` 可以被 MaiBot 加载；
-- `/mbti` 命令会回一句“骨架已加载”；
-- `mbti_stats` Tool 已注册，但内部还是占位。
+## 它和旧插件的区别
+
+旧版是 NoneBot 的命令式插件：`/mbti` 直接取成员、直接出图、直接发送。  
+新版分层：
+
+- `mbti_stats` Tool：真正执行统计，返回文本 + `content_items` 图片；
+- `/mbti` Command：**只给 AI 发送纯提醒**，让 AI 自己决定是否调用工具、怎么回复；
+- `/mbti-debug` / `/mbti_debug` Command：确定性调试入口，直接出图发送；执行后把“已执行”事件写回 Maisaka 上下文，让 AI 知道这次是调试命令触发的。该命令由 `[debug].enabled` 控制，默认关闭。
+
+这样正常路径由 AI 手操；调试/降级路径不经过 AI 决策，但会留下 AI 可见的上下文痕迹。
 
 ## 目录
 
 ```text
-_manifest.json
-plugin.py                 # MaiBot 入口；@Tool + @Command
+_manifest.json            # Manifest v2，含 capabilities
+config.toml               # 运行时配置（[plugin] / [daily] / [render]）
+plugin.py                 # 入口：@Tool、@Command、数据、并发、定时
 mbtistats/
-  analyze.py              # 从旧插件搬分析逻辑
-  render.py               # 生成 HTML；图片由 ctx.render 出
-  transform_render_data.py
-  config.py               # PluginConfigBase 配置模型（可选）
-  assets/                 # 静态模板/资源
+  analyze.py              # 昵称 -> MBTI 类型/特质统计（纯函数）
+  transform_render_data.py# 历史快照 -> 前端渲染数据
+  render.py               # 单文件 HTML 构建（CSS/JS/ECharts/图片/JSON 全内联）
+  config.py               # PluginConfigBase 配置模型
+  assets/
+scripts/
+  debug_frontend.py       # 浏览器预览：生成 debug/preview.html
+```
+
+## 配置
+
+`config.toml` 由 Host/WebUI 管理，核心字段：
+
+```toml
+[plugin]
+config_version = "0.2.0"
+enabled = true
+
+[daily]
+enabled = false
+hour = 0
+minute = 0
+group_ids = ["639990875", "1075254868"]
+
+[render]
+timeout_ms = 30000
+viewport_width = 1050
+viewport_height = 1000
+queue_wait_seconds = 20.0
+
+[debug]
+enabled = false
+```
+
+- `daily.enabled` 默认关闭；打开后每天到点通过 `ctx.maisaka.proactive.trigger` 提醒 AI，AI 再决定是否调用 `mbti_stats`。
+- `debug.enabled` 默认关闭；打开后才允许 `/mbti-debug` / `/mbti_debug` 直接出图。
+- `queue_wait_seconds` 是异群并发时的等待上限；超时 Tool 返回 `busy=true`，不会无限阻塞到 60 秒 RPC 超时。
+- `config_version` 是 SDK 的配置 schema 版本，不要手改。
+
+## 运行时约定
+
+- **群成员接口**：`adapter.snowluma.group.get_group_member_list`（NapCat 适配器同别名），字段 `user_id` / `nickname` / `card`。统计时把 `card` 和 `nickname` 合在一起扫描，同一个人只计一次。
+- **数据目录**：`ctx.paths.data_dir/v1/{group_id}/stats-data.json`。仓库不提交群历史数据（`mbtistats/assets/data/` 已 ignore）；部署机需要种子历史时，把 `v1/` 放到插件的 `mbtistats/assets/data/`，或直接放到 `ctx.paths.data_dir/v1/`。首次加载只有在目标不存在且种子源存在时才复制。
+- **渲染**：`ctx.render.html2png` 的底层是 `page.set_content`，没有虚拟 origin 或 `page.route`。因此 `render.py` 把 CSS、ECharts、图片 base64、JSON 全部内联成单文件 HTML；`allow_network=False` 也能完整出图。
+- **并发**：全局一个渲染锁；同群请求用 `_inflight` 合并为一个任务；异群最多等 `queue_wait_seconds`，超时返回 busy。禁止多个 MBTI 渲染同时跑。
+- **宿主浏览器**：容器内已安装 Playwright Chromium 到 `/MaiMBot/data/playwright-browsers`（挂载到宿主机 `data/playwright-browsers`），重启容器后仍可用。若换机器部署，需要先执行一次 `python -m playwright install chromium`，并把浏览器放到该目录或让渲染服务自动下载。
+
+## 浏览器预览
+
+```bash
+# 用真实历史数据生成单文件页面
+python scripts/debug_frontend.py --group 639990875
+
+# 起一个本地静态服务器（端口不要和 diagrams 的 8814 撞）
+python -m http.server 8821 --directory debug
+
+# 打开 http://127.0.0.1:8821/preview.html
+```
+
+预览和宿主渲染共用同一个 `build_html()`；预览里图表正常，宿主截图就不会因为资源加载失败而空白。
+
+## 本地开发
+
+插件运行在 MaiBot Host/Runner 子进程里，运行时不需要 `.venv`。仓库里的 `.venv` 只用于 IDE 补全和纯函数测试：
+
+```bash
+uv venv --python 3.13 .venv
+uv pip install maibot-plugin-sdk==2.12.0
+```
+
+容器内检查：
+
+```bash
+docker exec mbtistats-maibot-core python -m py_compile /MaiMBot/plugins/mbtistats/plugin.py
+docker logs -f mbtistats-maibot-core
 ```
 
 ## 迁移来源
 
 旧仓库：<https://github.com/Siridelta/nonebot-plugin-mbtistats>
 
-对应关系：
+原插件由 **Sirilit** 与 **AllayFocalors（玛画疼）** 合作开发；迁移到 MaiBot 时保留原有统计逻辑、历史数据和署名。
 
-- `analyze.py` → `mbtistats/analyze.py`
-- `transform_render_data.py` → `mbtistats/transform_render_data.py`
-- `render.py` → `mbtistats/render.py`，但不要自己起 Playwright；
-  用 `self.ctx.render.html2png(html, ...)`。
-- `get_group_data.py` → `self.ctx.api.call("adapter.napcat.group.get_group_member_list", ...)`
-- `config.py` → `PluginConfigBase` + `Field`
-- `__init__.py` 的 NoneBot 命令/定时任务 → `plugin.py` 的 `@Command` / `@Tool` / 定时逻辑
+## 已知边界
 
-不要 import NoneBot，也不要 import `src.*`；所有宿主能力走 `self.ctx`。
-
-## 开发步骤
-
-1. 搬 `analyze.py` / `transform_render_data.py`，先做成不依赖 NoneBot 的纯函数。
-2. 在 `plugin.py` 的 `mbti_stats` 里取群成员，调用分析层。
-3. 用 `ctx.render.html2png` 出图，`ctx.send.image` 发送；如果希望 AI 决定是否发图，
-   把图片作为 Tool 结果的 `content_items` 返回，让 AI 用 reply 附加。
-4. 给 `_manifest.json` 补 `capabilities`（如 `send.image`）和
-   `dependencies`（Python 包），Host 会处理依赖。
-5. 用 `/mbti` 做确定性测试；用自然语言触发 `mbti_stats` 测 AI 路径。
-
-## 本地加载
-
-把整个目录放到 MaiBot 的 `plugins/mbtistats`，或在 Docker 里挂载：
-
-```yaml
-- ../maibot-plugin-mbtistats:/MaiMBot/plugins/mbtistats
-```
-
-修改 `plugin.py` 后 MaiBot 会自动热重载；不生效就重启 core。
-
-## 数据
-
-持久数据用：
-
-```python
-self.ctx.paths.data_dir
-```
-
-默认映射到 `data/plugins/<plugin_id>/`，不要写死插件源码目录。
+- 只支持群聊；私聊里没有群成员列表，Tool 会拒绝。
+- 统计只看群名片/QQ 昵称里的显式 MBTI 声明，不做画像猜测。
+- 共享消息组只共享长期记忆/表达/黑话，不共享原始聊天消息；跨群原始消息需要另写桥接插件。
+- `/mbti` 只负责提醒 AI；确定性降级入口是 `/mbti-debug` / `/mbti_debug`，且默认关闭。
+- `/mbti-debug` 执行完会把结果摘要写回 Maisaka 上下文；AI 之后的回复能看到这次调试已经发生过。

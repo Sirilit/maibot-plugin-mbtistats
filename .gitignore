@@ -3,3 +3,16 @@ __pycache__/
 .venv/
 .pytest_cache/
 *.log
+
+# Host-generated config backups
+config_back/
+*.backup.*
+
+# Runtime group history: deploy/migrate separately, never commit group data
+mbtistats/assets/data/
+
+# Browser preview artifacts
+debug/preview.html
+debug/data/
+debug/*.png
+debug/*.jpg
