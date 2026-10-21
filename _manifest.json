@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
-  "version": "0.4.0",
+  "version": "0.7.0",
   "name": "MBTI Stats",
-  "description": "统计群成员的 MBTI 类型与特质分布；AI 群由 AI 决定如何发送，统计专用群直接出图。",
+  "description": "统计群成员的 MBTI 类型与特质分布；AI 处理群由 AI 决定如何发送，自动处理群直接出图。",
   "author": {
     "name": "Sirilit",
     "url": "https://github.com/Sirilit"

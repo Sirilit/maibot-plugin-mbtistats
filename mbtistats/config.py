@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from maibot_sdk import Field, PluginConfigBase
 
-CONFIG_VERSION = "0.4.0"
+CONFIG_VERSION = "0.7.0"
 
 
 class PluginSection(PluginConfigBase):
@@ -33,13 +33,20 @@ class DailySection(PluginConfigBase):
 
     enabled: bool = Field(
         default=False,
-        description="是否每天自动触发一次 MBTI 统计。AI 群由 AI 决定是否发送图表；统计专用群直接出图。",
+        description="是否每天自动触发一次 MBTI 统计。AI 处理群由 AI 决定是否发送图表；自动处理群直接出图。",
     )
     hour: int = Field(default=0, description="每日自动统计的小时（0-23）。")
     minute: int = Field(default=0, description="每日自动统计的分钟（0-59）。")
+    mode: Literal["whitelist", "blacklist"] = Field(
+        default="whitelist",
+        description=(
+            "group_ids 的解释方式：whitelist 只统计列表中的群；"
+            "blacklist 统计所有已知群聊流，但排除列表中的群。"
+        ),
+    )
     group_ids: list[str] = Field(
         default_factory=lambda: ["639990875", "1075254868"],
-        description="每日自动统计的群号列表。",
+        description="每日自动统计的群号列表；按 mode 作为白名单或黑名单。",
     )
 
 
@@ -57,7 +64,7 @@ class AnnouncementSection(PluginConfigBase):
     extra: str = Field(
         default=(
             "一个小新闻（）\n"
-            "最近 siri 想改进一下 bot 制作统计图时的一个美术细节，"
+            "最近 siri 想改进一下小面包制作统计图时的一个美术细节，"
             "现在统计图里只会在最开头处显示“本次统计最多的人格”和第一名的全身图，"
             "所以我们现在有点想把它换成一个更能代表 16 人格的版本："
             "给每种人格选一个代表物件，比如 INTP 是小锥形瓶、INFP 是小蝴蝶、ESTP 是小墨镜，"
@@ -70,6 +77,14 @@ class AnnouncementSection(PluginConfigBase):
             "非常感谢非常感谢w"
         ),
         description="公告正文（不含开头标题、GitHub 和开发者信息）；空行会拆成合并转发的多条消息。",
+    )
+    stats_only_notice_enabled: bool = Field(
+        default=False,
+        description="是否在自动处理群的统计图后发送“AI 未启用”提示；与公告开关独立。",
+    )
+    stats_only_notice: str = Field(
+        default="（为了节省 token 消耗，AI 功能在本群暂不可用，如有需要请联系开发者）",
+        description="自动处理群发完图后发送的提示文案；留空则不发。",
     )
 
 
@@ -115,9 +130,9 @@ class AccessSection(PluginConfigBase):
     ai_group_ids: list[str] = Field(
         default_factory=list,
         description=(
-            "允许 AI 正常聊天的群号列表。列表之外的群进入统计专用模式："
+            "AI 处理群白名单。列表之外的群进入自动处理模式："
             "只放行 /mbti 与 /mbti-debug，其他消息在进入上下文前拦截。"
-            "留空表示所有群都进入统计专用模式。"
+            "留空表示所有群都进入自动处理模式。"
         ),
     )
 

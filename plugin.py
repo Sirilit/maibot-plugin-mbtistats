@@ -11,15 +11,14 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-import re
 import shutil
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from maibot_sdk import CONFIG_RELOAD_SCOPE_SELF, Command, HookHandler, MaiBotPlugin, Tool
-from maibot_sdk.types import ErrorPolicy, HookMode, HookOrder, ToolParameterInfo, ToolParamType
+from maibot_sdk import CONFIG_RELOAD_SCOPE_SELF, Command, MaiBotPlugin, Tool
+from maibot_sdk.types import ToolParameterInfo, ToolParamType
 
 from .mbtistats.analyze import analyze_trait_stats, analyze_type_stats
 from .mbtistats.config import MBTISTatsConfig
@@ -80,7 +79,7 @@ class MBTIStatsPlugin(MaiBotPlugin):
     # Stats-only access control
     # ------------------------------------------------------------------
 
-    def _is_stats_only_group(self, group_id: str) -> bool:
+    def _is_auto_group(self, group_id: str) -> bool:
         """Return whether *group_id* should be restricted to stats commands."""
         ai_group_ids = {
             str(item).strip()
@@ -88,68 +87,6 @@ class MBTIStatsPlugin(MaiBotPlugin):
             if str(item).strip()
         }
         return bool(group_id) and group_id not in ai_group_ids
-
-    @staticmethod
-    def _message_group_id(message: dict[str, Any]) -> str:
-        message_info = message.get("message_info")
-        if not isinstance(message_info, dict):
-            return ""
-        group_info = message_info.get("group_info")
-        if not isinstance(group_info, dict):
-            return ""
-        return str(group_info.get("group_id") or "").strip()
-
-    @staticmethod
-    def _message_text(message: dict[str, Any]) -> str:
-        processed = message.get("processed_plain_text")
-        if isinstance(processed, str) and processed.strip():
-            return processed
-        raw_message = message.get("raw_message")
-        if not isinstance(raw_message, list):
-            return ""
-        parts: list[str] = []
-        for segment in raw_message:
-            if not isinstance(segment, dict) or segment.get("type") != "text":
-                continue
-            data = segment.get("data")
-            if isinstance(data, str):
-                parts.append(data)
-        return "".join(parts)
-
-    @staticmethod
-    def _is_stats_command(text: str) -> bool:
-        return bool(
-            re.match(r"^\s*/mbti(?:[-_]debug)?(?:\s|$)", text or "")
-        )
-
-    @HookHandler(
-        "chat.receive.before_process",
-        name="stats_only_gate",
-        mode=HookMode.BLOCKING,
-        order=HookOrder.EARLY,
-        error_policy=ErrorPolicy.SKIP,
-    )
-    async def stats_only_gate(self, message: dict[str, Any], **kwargs: Any) -> dict[str, str]:
-        """Block non-stats messages before they enter chat context or the AI.
-
-        The adapter policy still has to admit the group.  For groups outside
-        ``access.ai_group_ids`` this hook lets only the stats commands through;
-        ordinary chat, images, notices and other commands are aborted before
-        ``SessionMessage.process()``, so no context or model request is created.
-        """
-        del kwargs
-        if not self.config.plugin.enabled:
-            return {"action": "continue"}
-
-        group_id = self._message_group_id(message)
-        if not group_id or not self._is_stats_only_group(group_id):
-            return {"action": "continue"}
-
-        if self._is_stats_command(self._message_text(message)):
-            return {"action": "continue"}
-
-        self.ctx.logger.debug("stats-only gate 拦截群消息: group_id=%s", group_id)
-        return {"action": "abort"}
 
     # ------------------------------------------------------------------
     # Tool / command
@@ -218,29 +155,32 @@ class MBTIStatsPlugin(MaiBotPlugin):
     )
     async def send_announcement(self, **kwargs: Any) -> dict[str, Any]:
         """Send the fixed project announcement as one merged-forward message."""
-        if not self.config.announcement.enabled:
-            return {"success": False, "message": "项目公告当前未启用。"}
         stream_id = str(kwargs.get("stream_id") or "").strip()
         if not stream_id:
             return {"success": False, "message": "没有拿到当前聊天流，无法发送公告。"}
-        bodies = self._announcement_nodes()
-        if not bodies:
+        return await self._send_announcement(
+            stream_id,
+            sync_to_maisaka_history=True,
+        )
+
+    async def _send_announcement(
+        self,
+        stream_id: str,
+        *,
+        sync_to_maisaka_history: bool,
+    ) -> dict[str, Any]:
+        """Send the project announcement, optionally keeping it out of AI history."""
+        if not self.config.announcement.enabled:
+            return {"success": False, "message": "项目公告当前未启用。"}
+        messages = self._announcement_messages()
+        if not messages:
             return {"success": False, "message": "公告正文为空。"}
-        messages = [
-            {
-                "user_id": "",
-                "nickname": _ANNOUNCEMENT_SENDER,
-                "message_id": f"mbti_announcement_{index}",
-                "content": [{"type": "text", "content": body}],
-            }
-            for index, body in enumerate(bodies)
-        ]
         try:
             result = await self.ctx.send.forward(
                 messages,
                 stream_id,
                 return_details=True,
-                sync_to_maisaka_history=True,
+                sync_to_maisaka_history=sync_to_maisaka_history,
             )
         except Exception:
             self.ctx.logger.exception("发送项目公告失败: stream_id=%s", stream_id)
@@ -256,7 +196,7 @@ class MBTIStatsPlugin(MaiBotPlugin):
             fallback_sent = await self.ctx.send.text(
                 self._announcement_text(),
                 stream_id,
-                sync_to_maisaka_history=True,
+                sync_to_maisaka_history=sync_to_maisaka_history,
             )
         except Exception:
             self.ctx.logger.exception("文本兜底发送公告失败: stream_id=%s", stream_id)
@@ -264,6 +204,26 @@ class MBTIStatsPlugin(MaiBotPlugin):
         if fallback_sent is False:
             return {"success": False, "message": "发送公告失败，请稍后再试。"}
         return {"success": True, "content": "项目公告已发送（合并转发不可用，已改用文本）。"}
+
+    async def _send_auto_group_followup(self, stream_id: str) -> None:
+        """Send optional notice and/or the fixed announcement after stats."""
+        if self.config.announcement.stats_only_notice_enabled:
+            notice = str(self.config.announcement.stats_only_notice or "").strip()
+            if notice:
+                try:
+                    await self.ctx.send.text(
+                        notice,
+                        stream_id,
+                        sync_to_maisaka_history=False,
+                    )
+                except Exception:
+                    self.ctx.logger.exception("发送自动处理群提示失败: stream_id=%s", stream_id)
+        if not self.config.announcement.enabled:
+            return
+        await self._send_announcement(
+            stream_id,
+            sync_to_maisaka_history=False,
+        )
 
     def _announcement_text(self) -> str:
         """Full announcement text, used as a fallback when forward fails."""
@@ -278,6 +238,18 @@ class MBTIStatsPlugin(MaiBotPlugin):
         return [
             _ANNOUNCEMENT_HEADER,
             *[part.strip() for part in extra.split("\n\n") if part.strip()],
+        ]
+
+    def _announcement_messages(self) -> list[dict[str, Any]]:
+        """Build the merged-forward nodes used by both AI and direct paths."""
+        return [
+            {
+                "user_id": "",
+                "nickname": _ANNOUNCEMENT_SENDER,
+                "message_id": f"mbti_announcement_{index}",
+                "content": [{"type": "text", "content": body}],
+            }
+            for index, body in enumerate(self._announcement_nodes())
         ]
 
     def _announcement_instruction(self) -> str:
@@ -299,12 +271,18 @@ class MBTIStatsPlugin(MaiBotPlugin):
             await self.ctx.send.text(f"❌ {result.get('message') or 'MBTI 统计失败。'}", stream_id)
             return True, None, 2
 
-        await self.ctx.send.image(result["image_base64"], stream_id)
+        await self.ctx.send.image(
+            result["image_base64"],
+            stream_id,
+            sync_to_maisaka_history=False,
+        )
+        if self._is_auto_group(group_id):
+            await self._send_auto_group_followup(stream_id)
         return True, None, 2
 
     @Command("mbti", pattern=r"^/mbti(?:\s|$)")
     async def mbti_command(self, **kwargs: Any):
-        """Pure reminder for AI groups; deterministic send for stats-only groups."""
+        """Pure reminder for AI 处理群; deterministic send for 自动处理群."""
         stream_id = str(kwargs.get("stream_id") or "").strip()
         group_id = str(kwargs.get("group_id") or "").strip()
         if not stream_id:
@@ -312,7 +290,7 @@ class MBTIStatsPlugin(MaiBotPlugin):
         if not self.config.plugin.enabled:
             return True, None, 2
 
-        if self._is_stats_only_group(group_id):
+        if self._is_auto_group(group_id):
             return await self._send_stats_direct(group_id=group_id, stream_id=stream_id)
 
         try:
@@ -357,8 +335,8 @@ class MBTIStatsPlugin(MaiBotPlugin):
             await self.ctx.send.text(f"❌ {result.get('message') or 'MBTI 统计失败。'}", stream_id)
             return True, None, 2
 
-        await self.ctx.send.image(result["image_base64"], stream_id)
-        if not self._is_stats_only_group(group_id):
+        await self.ctx.send.image(result["image_base64"], stream_id, sync_to_maisaka_history=False)
+        if not self._is_auto_group(group_id):
             # Keep the AI informed only in groups where the AI is active.
             await self._append_ai_context(
                 stream_id,
@@ -638,8 +616,74 @@ class MBTIStatsPlugin(MaiBotPlugin):
                 self.ctx.logger.exception("每日 MBTI 统计循环异常，60 秒后重试")
                 await asyncio.sleep(60)
 
+    async def _fetch_group_ids(self) -> list[str] | None:
+        """Fetch all joined group IDs through the SnowLuma/NapCat adapter."""
+        for api_name in (
+            "adapter.snowluma.group.get_group_list",
+            "adapter.napcat.group.get_group_list",
+        ):
+            try:
+                result = await self.ctx.api.call(
+                    api_name,
+                    version="1",
+                    no_cache=True,
+                )
+            except Exception as exc:
+                self.ctx.logger.warning("获取群列表失败: api=%s error=%s", api_name, exc)
+                continue
+
+            groups: list[Any]
+            if isinstance(result, list):
+                groups = result
+            elif isinstance(result, dict):
+                found = None
+                for key in ("groups", "group_list", "list", "data", "items"):
+                    candidate = result.get(key)
+                    if isinstance(candidate, list):
+                        found = candidate
+                        break
+                groups = found or []
+            else:
+                groups = []
+
+            if groups:
+                group_ids: list[str] = []
+                seen: set[str] = set()
+                for group in groups:
+                    if not isinstance(group, dict):
+                        continue
+                    group_id = str(group.get("group_id") or "").strip()
+                    if group_id and group_id not in seen:
+                        seen.add(group_id)
+                        group_ids.append(group_id)
+                if group_ids:
+                    return group_ids
+        return None
+
+    async def _daily_group_ids(self) -> list[str]:
+        """Resolve the daily-stat target groups according to ``daily.mode``."""
+        configured: list[str] = []
+        seen: set[str] = set()
+        for raw_group_id in self.config.daily.group_ids:
+            group_id = str(raw_group_id).strip()
+            if group_id and group_id not in seen:
+                seen.add(group_id)
+                configured.append(group_id)
+
+        if str(self.config.daily.mode).lower() != "blacklist":
+            return configured
+
+        all_group_ids = await self._fetch_group_ids()
+        if all_group_ids is None:
+            self.ctx.logger.warning("黑名单每日统计无法读取 SnowLuma 群列表")
+            return []
+
+        excluded = set(configured)
+        target_ids = [group_id for group_id in all_group_ids if group_id not in excluded]
+        return target_ids
+
     async def _trigger_daily(self) -> None:
-        for group_id in self.config.daily.group_ids:
+        for group_id in await self._daily_group_ids():
             group_id = str(group_id).strip()
             if not group_id:
                 continue
@@ -662,14 +706,19 @@ class MBTIStatsPlugin(MaiBotPlugin):
                 if not stream_id:
                     self.ctx.logger.warning("每日统计跳过群 %s：没有聊天流", group_id)
                     continue
-                if self._is_stats_only_group(group_id):
+                if self._is_auto_group(group_id):
                     result = await self._get_stats(
                         group_id=group_id,
                         stream_id=stream_id,
                         platform="qq",
                     )
                     if result.get("success"):
-                        await self.ctx.send.image(result["image_base64"], stream_id)
+                        await self.ctx.send.image(
+                            result["image_base64"],
+                            stream_id,
+                            sync_to_maisaka_history=False,
+                        )
+                        await self._send_auto_group_followup(stream_id)
                         self.ctx.logger.info("已直接发送每日 MBTI 统计: group_id=%s", group_id)
                     else:
                         self.ctx.logger.warning(
