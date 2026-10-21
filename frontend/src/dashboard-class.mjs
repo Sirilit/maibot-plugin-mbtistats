@@ -88,10 +88,13 @@ export class MbtistatsDashboard {
     renderTypeHistoryTable() {
         if (!this.typeHistoryData || this.typeHistoryData.length === 0) return;
 
+        const recentRecords = this.getRecentDailyRecords(this.typeHistoryData);
+        if (recentRecords.length === 0) return;
+
         let tableHTML = '<table>';
         tableHTML += '<thead><tr><th>日期</th>';
 
-        const presentTypes = new Set(this.typeHistoryData.flatMap(record =>
+        const presentTypes = new Set(recentRecords.flatMap(record =>
             record.data.filter(item => item.value > 0).map(item => item.name)
         ));
         // 已知类型按 mbtiConfig 的顺序（绿→紫→蓝→黄），未知/模糊类型排在最后。
@@ -105,7 +108,7 @@ export class MbtistatsDashboard {
         });
         tableHTML += '</tr></thead><tbody>';
 
-        this.typeHistoryData.toReversed().forEach(record => {
+        recentRecords.forEach(record => {
             const d = new Date(record.timestamp);
             const dateStr = `${d.getMonth() + 1}-${d.getDate()}`;
             tableHTML += `<tr><td>${dateStr}</td>`;
@@ -121,6 +124,9 @@ export class MbtistatsDashboard {
 
     renderTraitHistoryTable() {
         if (!this.traitHistoryData || this.traitHistoryData.length === 0) return;
+
+        const recentRecords = this.getRecentDailyRecords(this.traitHistoryData);
+        if (recentRecords.length === 0) return;
 
         let tableHTML = '<table>';
         tableHTML += '<thead><tr><th>日期</th>';
@@ -140,7 +146,7 @@ export class MbtistatsDashboard {
         });
         tableHTML += '</tr></thead><tbody>';
 
-        this.traitHistoryData.toReversed().forEach(record => {
+        recentRecords.forEach(record => {
             const d = new Date(record.timestamp);
             const dateStr = `${d.getMonth() + 1}-${d.getDate()}`;
             tableHTML += `<tr><td>${dateStr}</td>`;
@@ -155,6 +161,26 @@ export class MbtistatsDashboard {
 
         tableHTML += '</tbody></table>';
         this.traitTableContainer.innerHTML = tableHTML;
+    }
+
+    getRecentDailyRecords(historyData) {
+        if (!Array.isArray(historyData)) return [];
+
+        const byDay = new Map();
+        historyData.forEach(record => {
+            if (!record || !Number.isFinite(record.timestamp)) return;
+            const d = new Date(record.timestamp);
+            const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+            const current = byDay.get(key);
+            if (!current || record.timestamp >= current.timestamp) {
+                byDay.set(key, record);
+            }
+        });
+
+        return [...byDay.values()]
+            .sort((a, b) => a.timestamp - b.timestamp)
+            .slice(-10)
+            .reverse();
     }
 
     setupAll() {

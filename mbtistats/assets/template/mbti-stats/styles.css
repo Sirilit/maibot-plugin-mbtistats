@@ -229,8 +229,6 @@ h1 {
 #history-table-container, #trait-history-table-container {
     width: 100%;
     overflow-x: auto;
-    overflow-y: auto;
-    max-height: 400px;
     border: 1px solid #ddd;
     border-radius: 8px;
 }
