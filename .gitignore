@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache/
 *.log
 frontend/node_modules/
+config.toml
 
 # Host-generated config backups
 config_back/

@@ -35,7 +35,7 @@ scripts/
 
 ## 配置
 
-`config.toml` 由 Host/WebUI 管理，核心字段：
+`config.toml` 是运行时配置（群号、公告正文等），已 gitignore；首次加载时 Host 会按 `mbtistats/config.py` 的默认值生成，WebUI 后续改这份文件。仓库里只保留代码默认值，不提交部署配置。
 
 ```toml
 [plugin]
