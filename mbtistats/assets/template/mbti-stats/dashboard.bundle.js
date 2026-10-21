@@ -111,7 +111,7 @@ var MbtistatsDashboardBundle = (() => {
       if (recentRecords.length === 0) return;
       let tableHTML = "<table>";
       tableHTML += "<thead><tr><th>日期</th>";
-      const presentTypes = new Set(recentRecords.flatMap(
+      const presentTypes = new Set(this.typeHistoryData.flatMap(
         (record) => record.data.filter((item) => item.value > 0).map((item) => item.name)
       ));
       const allTypes = [

@@ -94,7 +94,7 @@ export class MbtistatsDashboard {
         let tableHTML = '<table>';
         tableHTML += '<thead><tr><th>日期</th>';
 
-        const presentTypes = new Set(recentRecords.flatMap(record =>
+        const presentTypes = new Set(this.typeHistoryData.flatMap(record =>
             record.data.filter(item => item.value > 0).map(item => item.name)
         ));
         // 已知类型按 mbtiConfig 的顺序（绿→紫→蓝→黄），未知/模糊类型排在最后。
