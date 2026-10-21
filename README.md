@@ -26,6 +26,9 @@ mbtistats/
   render.py               # 单文件 HTML 构建（CSS/JS/ECharts/图片/JSON 全内联）
   config.py               # PluginConfigBase 配置模型
   assets/
+    fonts/                # Noto Sans CJK SC 子集（WOFF2），render.py 内联为 @font-face
+    images/               # 人格图片
+    template/             # index.html / styles.css / ECharts / dashboard bundle
 scripts/
   debug_frontend.py       # 浏览器预览：生成 debug/preview.html
 ```
@@ -75,6 +78,7 @@ enabled = false
 - **渲染**：`ctx.render.html2png` 的底层是 `page.set_content`，没有虚拟 origin 或 `page.route`。因此 `render.py` 把 CSS、ECharts、图片 base64、JSON 全部内联成单文件 HTML；`allow_network=False` 也能完整出图。
 - **并发**：全局一个渲染锁；同群请求用 `_inflight` 合并为一个任务；异群最多等 `queue_wait_seconds`，超时返回 busy。禁止多个 MBTI 渲染同时跑。
 - **宿主浏览器**：容器内已安装 Playwright Chromium 到 `/MaiMBot/data/playwright-browsers`（挂载到宿主机 `data/playwright-browsers`），重启容器后仍可用。若换机器部署，需要先执行一次 `python -m playwright install chromium`，并把浏览器放到该目录或让渲染服务自动下载。
+- **字体**：`mbtistats/assets/fonts/` 里是 Noto Sans CJK SC 的 Regular/Bold 子集（WOFF2），`render.py` 以 `@font-face` data URI 内联进 HTML。旧 NoneBot 镜像是靠 `fonts-noto-cjk` 系统字体；MaiBot 镜像只有文泉驿，所以之前会回退成文泉驿。字体子集把 HTML 从约 2MB 推到约 9MB，仍在插件 RPC 的单帧 16MB 限制内；渲染实测约 5 秒。
 
 - **定时任务**：`_daily_loop` 只负责到点 `proactive.trigger`；不做独立的倒计时提醒。
 - **公告入口**：每日统计和 `/mbti` 都会在统计图之后让 AI 调用 `send_announcement`；`/mbti-debug` 不调用。工具用 `ctx.send.forward` 发合并转发，开头三行写死在代码里，正文来自 `[announcement].extra`；合并转发失败时退回发送纯文本。

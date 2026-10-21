@@ -16,6 +16,7 @@ from typing import Any
 ASSETS_DIR = Path(__file__).parent / "assets"
 TEMPLATE_DIR = ASSETS_DIR / "template" / "mbti-stats"
 IMAGE_DIR = ASSETS_DIR / "images"
+FONT_DIR = ASSETS_DIR / "fonts"
 
 _HTML_TEMPLATE = (TEMPLATE_DIR / "index.html").read_text(encoding="utf-8")
 _STYLES = (TEMPLATE_DIR / "styles.css").read_text(encoding="utf-8")
@@ -23,6 +24,33 @@ _ECHARTS_JS = (TEMPLATE_DIR / "echarts.min.js").read_text(encoding="utf-8")
 _DASHBOARD_JS = (TEMPLATE_DIR / "dashboard.bundle.js").read_text(encoding="utf-8")
 
 _IMAGE_MAP_CACHE: dict[str, str] | None = None
+
+
+def _font_face(weight: int, filename: str) -> str:
+    """Return an inline ``@font-face`` rule, or an empty string if missing."""
+    path = FONT_DIR / filename
+    if not path.exists():
+        return ""
+    data = base64.b64encode(path.read_bytes()).decode("ascii")
+    return (
+        "@font-face {"
+        'font-family: "Noto Sans SC";'
+        f"src: url(data:font/woff2;base64,{data}) format('woff2');"
+        f"font-weight: {weight};"
+        "font-style: normal;"
+        "font-display: block;"
+        "}"
+    )
+
+
+_FONT_CSS = "\n".join(
+    rule
+    for rule in (
+        _font_face(400, "NotoSansSC-Regular.woff2"),
+        _font_face(700, "NotoSansSC-Bold.woff2"),
+    )
+    if rule
+)
 
 
 def _image_map() -> dict[str, str]:
@@ -56,7 +84,7 @@ def build_html(render_data: dict[str, Any]) -> str:
     image_json = image_json.replace("</", "<\\/")
 
     return (
-        _HTML_TEMPLATE.replace("__STYLE__", _STYLES)
+        _HTML_TEMPLATE.replace("__STYLE__", _FONT_CSS + "\n" + _STYLES)
         .replace("__ECHARTS_JS__", _ECHARTS_JS)
         .replace("__DASHBOARD_JS__", _DASHBOARD_JS)
         .replace("__IMAGE_MAP__", image_json)
