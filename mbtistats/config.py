@@ -57,7 +57,7 @@ class AnnouncementSection(PluginConfigBase):
     extra: str = Field(
         default=(
             "一个小新闻（）\n"
-            "最近 siri 想改进一下小面包制作统计图时的一个美术细节，"
+            "最近 siri 想改进一下 bot 制作统计图时的一个美术细节，"
             "现在统计图里只会在最开头处显示“本次统计最多的人格”和第一名的全身图，"
             "所以我们现在有点想把它换成一个更能代表 16 人格的版本："
             "给每种人格选一个代表物件，比如 INTP 是小锥形瓶、INFP 是小蝴蝶、ESTP 是小墨镜，"

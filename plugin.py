@@ -33,7 +33,7 @@ _ANNOUNCEMENT_HEADER = "\n".join(
         "开发者：Sirilit（识启）、AllayFocalors（玛画疼）",
     )
 )
-_ANNOUNCEMENT_SENDER = "小面包"
+_ANNOUNCEMENT_SENDER = "16bit小面包-mbti计数菌"
 
 
 class MBTIStatsPlugin(MaiBotPlugin):
