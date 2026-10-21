@@ -254,3 +254,50 @@ th {
 tbody tr:nth-child(even) {
     background-color: #f9f9f9;
 }
+
+/* 类型历史表：按 MBTI 四组给列底着色（参考 opcc 16p 的 2×2 块配色）。
+   组色只负责“分组”，单元格文字仍用深灰，避免 16 个色相亮度差太大。 */
+#history-table-container th.col-nf,
+#history-table-container td.col-nf {
+    background-color: #e9f7ef;
+}
+
+#history-table-container th.col-nt,
+#history-table-container td.col-nt {
+    background-color: #f3ecfb;
+}
+
+#history-table-container th.col-sj,
+#history-table-container td.col-sj {
+    background-color: #e8f1fc;
+}
+
+#history-table-container th.col-sp,
+#history-table-container td.col-sp {
+    background-color: #fdf6e0;
+}
+
+#history-table-container th.col-other,
+#history-table-container td.col-other {
+    background-color: #f7f7f7;
+}
+
+#history-table-container th.col-nf {
+    color: #1e7e34;
+}
+
+#history-table-container th.col-nt {
+    color: #6b3fa0;
+}
+
+#history-table-container th.col-sj {
+    color: #245f9e;
+}
+
+#history-table-container th.col-sp {
+    color: #8a6a00;
+}
+
+#history-table-container th.col-other {
+    color: #777;
+}

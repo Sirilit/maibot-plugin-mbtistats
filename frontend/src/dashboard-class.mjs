@@ -104,7 +104,7 @@ export class MbtistatsDashboard {
         ];
 
         allTypes.forEach(type => {
-            tableHTML += `<th>${type}</th>`;
+            tableHTML += `<th class="col-${this.typeGroup(type)}">${type}</th>`;
         });
         tableHTML += '</tr></thead><tbody>';
 
@@ -114,7 +114,7 @@ export class MbtistatsDashboard {
             tableHTML += `<tr><td>${dateStr}</td>`;
             allTypes.forEach(type => {
                 const item = record.data.find(x => x.name === type);
-                tableHTML += `<td>${item ? item.value : 0}</td>`;
+                tableHTML += `<td class="col-${this.typeGroup(type)}">${item ? item.value : 0}</td>`;
             });
             tableHTML += '</tr>';
         });
@@ -181,6 +181,12 @@ export class MbtistatsDashboard {
             .sort((a, b) => a.timestamp - b.timestamp)
             .slice(-10)
             .reverse();
+    }
+
+    typeGroup(type) {
+        if (typeof type !== 'string' || !/^[EI][NS][TF][JP]$/.test(type)) return 'other';
+        if (type[1] === 'N') return type[2] === 'F' ? 'nf' : 'nt';
+        return type[3] === 'J' ? 'sj' : 'sp';
     }
 
     setupAll() {
