@@ -11,14 +11,15 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import re
 import shutil
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from maibot_sdk import CONFIG_RELOAD_SCOPE_SELF, Command, MaiBotPlugin, Tool
-from maibot_sdk.types import ToolParameterInfo, ToolParamType
+from maibot_sdk import CONFIG_RELOAD_SCOPE_SELF, Command, HookHandler, MaiBotPlugin, Tool
+from maibot_sdk.types import ErrorPolicy, HookMode, HookOrder, ToolParameterInfo, ToolParamType
 
 from .mbtistats.analyze import analyze_trait_stats, analyze_type_stats
 from .mbtistats.config import MBTISTatsConfig
@@ -74,6 +75,81 @@ class MBTIStatsPlugin(MaiBotPlugin):
         if scope == CONFIG_RELOAD_SCOPE_SELF:
             self.ctx.logger.info("mbtistats config updated: version=%s", version)
         del config_data
+
+    # ------------------------------------------------------------------
+    # Stats-only access control
+    # ------------------------------------------------------------------
+
+    def _is_stats_only_group(self, group_id: str) -> bool:
+        """Return whether *group_id* should be restricted to stats commands."""
+        ai_group_ids = {
+            str(item).strip()
+            for item in self.config.access.ai_group_ids
+            if str(item).strip()
+        }
+        return bool(group_id) and group_id not in ai_group_ids
+
+    @staticmethod
+    def _message_group_id(message: dict[str, Any]) -> str:
+        message_info = message.get("message_info")
+        if not isinstance(message_info, dict):
+            return ""
+        group_info = message_info.get("group_info")
+        if not isinstance(group_info, dict):
+            return ""
+        return str(group_info.get("group_id") or "").strip()
+
+    @staticmethod
+    def _message_text(message: dict[str, Any]) -> str:
+        processed = message.get("processed_plain_text")
+        if isinstance(processed, str) and processed.strip():
+            return processed
+        raw_message = message.get("raw_message")
+        if not isinstance(raw_message, list):
+            return ""
+        parts: list[str] = []
+        for segment in raw_message:
+            if not isinstance(segment, dict) or segment.get("type") != "text":
+                continue
+            data = segment.get("data")
+            if isinstance(data, str):
+                parts.append(data)
+        return "".join(parts)
+
+    @staticmethod
+    def _is_stats_command(text: str) -> bool:
+        return bool(
+            re.match(r"^\s*(?:@\S+\s+)?/mbti(?:[-_]debug)?(?:\s|$)", text or "")
+        )
+
+    @HookHandler(
+        "chat.receive.before_process",
+        name="stats_only_gate",
+        mode=HookMode.BLOCKING,
+        order=HookOrder.EARLY,
+        error_policy=ErrorPolicy.SKIP,
+    )
+    async def stats_only_gate(self, message: dict[str, Any], **kwargs: Any) -> dict[str, str]:
+        """Block non-stats messages before they enter chat context or the AI.
+
+        The adapter policy still has to admit the group.  For groups outside
+        ``access.ai_group_ids`` this hook lets only the stats commands through;
+        ordinary chat, images, notices and other commands are aborted before
+        ``SessionMessage.process()``, so no context or model request is created.
+        """
+        del kwargs
+        if not self.config.plugin.enabled:
+            return {"action": "continue"}
+
+        group_id = self._message_group_id(message)
+        if not group_id or not self._is_stats_only_group(group_id):
+            return {"action": "continue"}
+
+        if self._is_stats_command(self._message_text(message)):
+            return {"action": "continue"}
+
+        self.ctx.logger.debug("stats-only gate 拦截群消息: group_id=%s", group_id)
+        return {"action": "abort"}
 
     # ------------------------------------------------------------------
     # Tool / command
@@ -213,15 +289,31 @@ class MBTIStatsPlugin(MaiBotPlugin):
             "公告内容固定，不要改写，也不要在调用后再复述一遍。"
         )
 
+    async def _send_stats_direct(self, *, group_id: str, stream_id: str) -> tuple[bool, None, int]:
+        """Render and send stats without asking the AI to call the tool."""
+        result = await self._get_stats(group_id=group_id, stream_id=stream_id, platform="qq")
+        if result.get("busy"):
+            await self.ctx.send.text(str(result.get("message") or "当前已有统计在渲染。"), stream_id)
+            return True, None, 2
+        if not result.get("success"):
+            await self.ctx.send.text(f"❌ {result.get('message') or 'MBTI 统计失败。'}", stream_id)
+            return True, None, 2
+
+        await self.ctx.send.image(result["image_base64"], stream_id)
+        return True, None, 2
+
     @Command("mbti", pattern=r"^/mbti(?:\s|$)")
     async def mbti_command(self, **kwargs: Any):
-        """Pure reminder: ask the AI to call ``mbti_stats`` itself."""
+        """Pure reminder for AI groups; deterministic send for stats-only groups."""
         stream_id = str(kwargs.get("stream_id") or "").strip()
         group_id = str(kwargs.get("group_id") or "").strip()
         if not stream_id:
             return False, None, 0
         if not self.config.plugin.enabled:
             return True, None, 2
+
+        if self._is_stats_only_group(group_id):
+            return await self._send_stats_direct(group_id=group_id, stream_id=stream_id)
 
         try:
             result = await self.ctx.maisaka.proactive.trigger(
@@ -257,21 +349,15 @@ class MBTIStatsPlugin(MaiBotPlugin):
         if not self.config.plugin.enabled:
             return True, None, 2
 
-        result = await self._get_stats(group_id=group_id, stream_id=stream_id, platform="qq")
-        if result.get("busy"):
-            await self.ctx.send.text(str(result.get("message") or "当前已有统计在渲染。"), stream_id)
-            return True, None, 2
-        if not result.get("success"):
-            await self.ctx.send.text(f"❌ {result.get('message') or 'MBTI 统计失败。'}", stream_id)
-            return True, None, 2
-
-        await self.ctx.send.image(result["image_base64"], stream_id)
-        await self._append_ai_context(
-            stream_id,
-            f"/mbti-debug 已执行，图表已直接发送。{result.get('summary') or ''}",
-            source_kind="plugin:mbtistats:debug",
-        )
-        return True, None, 2
+        result = await self._send_stats_direct(group_id=group_id, stream_id=stream_id)
+        if result[0] and not self._is_stats_only_group(group_id):
+            # Keep the AI informed only in groups where the AI is active.
+            await self._append_ai_context(
+                stream_id,
+                "/mbti-debug 已执行，图表已直接发送。",
+                source_kind="plugin:mbtistats:debug",
+            )
+        return result
 
     async def _append_ai_context(self, stream_id: str, text: str, *, source_kind: str) -> None:
         """Record a plugin event in Maisaka context so the AI knows it happened."""
@@ -567,6 +653,23 @@ class MBTIStatsPlugin(MaiBotPlugin):
                     ).strip()
                 if not stream_id:
                     self.ctx.logger.warning("每日统计跳过群 %s：没有聊天流", group_id)
+                    continue
+                if self._is_stats_only_group(group_id):
+                    result = await self._get_stats(
+                        group_id=group_id,
+                        stream_id=stream_id,
+                        platform="qq",
+                    )
+                    if result.get("success"):
+                        await self.ctx.send.image(result["image_base64"], stream_id)
+                        self.ctx.logger.info("已直接发送每日 MBTI 统计: group_id=%s", group_id)
+                    else:
+                        self.ctx.logger.warning(
+                            "每日 MBTI 统计失败: group_id=%s message=%s",
+                            group_id,
+                            result.get("message"),
+                        )
+                    await asyncio.sleep(1.0)
                     continue
                 announcement = self._announcement_instruction()
                 await self.ctx.maisaka.proactive.trigger(

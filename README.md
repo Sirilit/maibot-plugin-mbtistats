@@ -1,6 +1,6 @@
 # maibot-plugin-mbtistats
 
-MaiBot 的 MBTI 群统计插件：读取群成员群名片/昵称里声明的 MBTI，更新本群历史快照，渲染带趋势图的看板，并把图片交给 AI 决定如何发送。
+MaiBot 的 MBTI 群统计插件：读取群成员群名片/昵称里声明的 MBTI，更新本群历史快照，渲染带趋势图的看板。AI 群把图片交给 AI 决定如何发送；统计专用群由命令直接出图，不经过 AI。
 
 ## 它和旧插件的区别
 
@@ -8,18 +8,19 @@ MaiBot 的 MBTI 群统计插件：读取群成员群名片/昵称里声明的 MB
 新版分层：
 
 - `mbti_stats` Tool：真正执行统计，返回文本 + `content_items` 图片；
-- `/mbti` Command：**只给 AI 发送纯提醒**，让 AI 自己决定是否调用工具、怎么回复；如果 `announcement.enabled` 为真，提醒里会让 AI 发完图后调用 `send_announcement`，公告内容和每日统计一致。
-- `/mbti-debug` / `/mbti_debug` Command：确定性调试入口，直接出图发送；执行后把“已执行”事件写回 Maisaka 上下文，让 AI 知道这次是调试命令触发的。该命令由 `[debug].enabled` 控制，默认关闭。
+- `/mbti` Command：在 AI 群只给 AI 发送纯提醒，让 AI 自己决定是否调用工具、怎么回复；在统计专用群直接统计并发送图片，不经过 AI。如果 `announcement.enabled` 为真，AI 群的提醒里会让 AI 发完图后调用 `send_announcement`。
+- `/mbti-debug` / `/mbti_debug` Command：确定性调试入口，直接出图发送；AI 群里执行后会把“已执行”事件写回 Maisaka 上下文，统计专用群不写。该命令由 `[debug].enabled` 控制，默认关闭。
 - `send_announcement` Tool：把项目公告以**合并转发**消息发到当前聊天；开头标题、GitHub、开发者由代码写死，正文来自 `[announcement].extra`，AI 不需要改写。
+- `chat.receive.before_process` Hook：统计专用群只放行 `/mbti` / `/mbti-debug`，其他消息在进入 `SessionMessage.process()` 之前直接中止；不建聊天上下文，也不触发模型请求。
 
-这样正常路径由 AI 手操；调试/降级路径不经过 AI 决策，但会留下 AI 可见的上下文痕迹。
+这样 AI 群走正常的 AI 手操路径；统计专用群走确定性路径，只保留统计能力。
 
 ## 目录
 
 ```text
 _manifest.json            # Manifest v2，含 capabilities
-config.toml               # 运行时配置（[plugin] / [daily] / [announcement] / [render] / [debug]）
-plugin.py                 # 入口：@Tool、@Command、数据、并发、定时
+config.toml               # 运行时配置（[plugin] / [access] / [daily] / [announcement] / [render] / [debug]）
+plugin.py                 # 入口：@Tool、@Command、@HookHandler、数据、并发、定时
 mbtistats/
   analyze.py              # 昵称 -> MBTI 类型/特质统计（纯函数）
   transform_render_data.py# 历史快照 -> 前端渲染数据
@@ -39,13 +40,18 @@ scripts/
 
 ```toml
 [plugin]
-config_version = "0.3.0"
+config_version = "0.4.0"
 enabled = true
+
+[access]
+# 允许 AI 正常聊天的群；不在列表里的群进入统计专用模式
+ai_group_ids = ["639990875", "1075254868"]
 
 [daily]
 enabled = true
 hour = 0
 minute = 0
+# 需要每日统计的群；统计专用群也会在此直接出图
 group_ids = ["639990875", "1075254868"]
 
 [announcement]
@@ -64,8 +70,9 @@ queue_wait_seconds = 20.0
 enabled = false
 ```
 
-- `daily.enabled` 当前为 `true`（默认 `false`）；打开后每天到点通过 `ctx.maisaka.proactive.trigger` 提醒 AI，AI 再决定是否调用 `mbti_stats`。如果 `announcement.enabled` 为真，每日统计的 intent 会要求 AI 发完图后调用 `send_announcement`。
-- `announcement.enabled` 控制是否允许发送项目公告；公告开头三行（标题、GitHub、开发者）写死在 `plugin.py` 的 `_ANNOUNCEMENT_HEADER`，后面的正文在 `announcement.extra`。
+- `access.ai_group_ids` 是 AI 群白名单。列表之外的群进入统计专用模式：`/mbti` 直接出图，其他消息由 `chat.receive.before_process` Hook 在进入上下文前中止。留空表示所有群都进入统计专用模式。
+- `daily.enabled` 当前为 `true`（默认 `false`）；AI 群到点通过 `ctx.maisaka.proactive.trigger` 提醒 AI，AI 再决定是否调用 `mbti_stats`；统计专用群直接调用 `_get_stats` 并发图，不经过 AI。`daily.group_ids` 需要包含所有要每日统计的群。
+- `announcement.enabled` 控制是否允许发送项目公告；公告开头三行（标题、GitHub、开发者）写死在 `plugin.py` 的 `_ANNOUNCEMENT_HEADER`，后面的正文在 `announcement.extra`。统计专用群不会主动发公告。
 - `announcement.extra` 里的空行会拆成合并转发里的多条消息；在群里看到的是一条可展开的转发记录，不是一堵长文字。
 - `debug.enabled` 默认关闭；打开后才允许 `/mbti-debug` / `/mbti_debug` 直接出图。
 - `queue_wait_seconds` 是异群并发时的等待上限；超时 Tool 返回 `busy=true`，不会无限阻塞到 60 秒 RPC 超时。
@@ -80,8 +87,8 @@ enabled = false
 - **宿主浏览器**：容器内已安装 Playwright Chromium 到 `/MaiMBot/data/playwright-browsers`（挂载到宿主机 `data/playwright-browsers`），重启容器后仍可用。若换机器部署，需要先执行一次 `python -m playwright install chromium`，并把浏览器放到该目录或让渲染服务自动下载。
 - **字体**：`mbtistats/assets/fonts/` 里是 Noto Sans CJK SC 的 Regular/Bold 子集（WOFF2），`render.py` 以 `@font-face` data URI 内联进 HTML。旧 NoneBot 镜像是靠 `fonts-noto-cjk` 系统字体；MaiBot 镜像只有文泉驿，所以之前会回退成文泉驿。字体子集把 HTML 从约 2MB 推到约 9MB，仍在插件 RPC 的单帧 16MB 限制内；渲染实测约 5 秒。
 
-- **定时任务**：`_daily_loop` 只负责到点 `proactive.trigger`；不做独立的倒计时提醒。
-- **公告入口**：每日统计和 `/mbti` 都会在统计图之后让 AI 调用 `send_announcement`；`/mbti-debug` 不调用。工具用 `ctx.send.forward` 发合并转发，开头三行写死在代码里，正文来自 `[announcement].extra`；合并转发失败时退回发送纯文本。
+- **定时任务**：`_daily_loop` 只负责到点处理 `daily.group_ids`；AI 群走 `proactive.trigger`，统计专用群直接出图。不做独立的倒计时提醒。
+- **公告入口**：AI 群的每日统计和 `/mbti` 会在统计图之后让 AI 调用 `send_announcement`；`/mbti-debug` 和统计专用群不调用。工具用 `ctx.send.forward` 发合并转发，开头三行写死在代码里，正文来自 `[announcement].extra`；合并转发失败时退回发送纯文本。
 - **美术可视化**：16 人格代表物件的分布图方案见 `docs/mbti-object-visualization.md`（待美术合作和素材）。
 
 ## 前端源码与构建
@@ -137,5 +144,6 @@ docker logs -f mbtistats-maibot-core
 - 只支持群聊；私聊里没有群成员列表，Tool 会拒绝。
 - 统计只看群名片/QQ 昵称里的显式 MBTI 声明，不做画像猜测。
 - 共享消息组只共享长期记忆/表达/黑话，不共享原始聊天消息；跨群原始消息需要另写桥接插件。
-- `/mbti` 只负责提醒 AI；确定性降级入口是 `/mbti-debug` / `/mbti_debug`，且默认关闭。
-- `/mbti-debug` 执行完会把结果摘要写回 Maisaka 上下文；AI 之后的回复能看到这次调试已经发生过。
+- 统计专用群仍需要 MaiBot 适配器能收到群消息，再由插件 Hook 在进入上下文前拦截；`adapter_policy` 不能把整个群 block 掉，否则 `/mbti` 也收不到。部署示例把 `[adapters.group] default_action` 设为 `allow`，由插件按 `access.ai_group_ids` 分流。
+- `/mbti` 在 AI 群只负责提醒 AI；在统计专用群直接出图。统计专用群的确定性入口是 `/mbti`，调试入口 `/mbti-debug` 仍由 `[debug].enabled` 控制。
+- `/mbti-debug` 在 AI 群执行完会把“已执行”事件写回 Maisaka 上下文；统计专用群不写。

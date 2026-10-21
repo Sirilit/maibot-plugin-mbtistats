@@ -6,7 +6,7 @@ from typing import ClassVar
 
 from maibot_sdk import Field, PluginConfigBase
 
-CONFIG_VERSION = "0.3.0"
+CONFIG_VERSION = "0.4.0"
 
 
 class PluginSection(PluginConfigBase):
@@ -29,11 +29,11 @@ class DailySection(PluginConfigBase):
 
     __ui_label__: ClassVar[str] = "每日统计"
     __ui_icon__: ClassVar[str] = "clock"
-    __ui_order__: ClassVar[int] = 1
+    __ui_order__: ClassVar[int] = 2
 
     enabled: bool = Field(
         default=False,
-        description="是否每天自动触发一次 MBTI 统计。启用后由 AI 决定是否发送图表。",
+        description="是否每天自动触发一次 MBTI 统计。AI 群由 AI 决定是否发送图表；统计专用群直接出图。",
     )
     hour: int = Field(default=0, description="每日自动统计的小时（0-23）。")
     minute: int = Field(default=0, description="每日自动统计的分钟（0-59）。")
@@ -48,7 +48,7 @@ class AnnouncementSection(PluginConfigBase):
 
     __ui_label__: ClassVar[str] = "公告"
     __ui_icon__: ClassVar[str] = "megaphone"
-    __ui_order__: ClassVar[int] = 2
+    __ui_order__: ClassVar[int] = 3
 
     enabled: bool = Field(
         default=True,
@@ -78,7 +78,7 @@ class RenderSection(PluginConfigBase):
 
     __ui_label__: ClassVar[str] = "渲染"
     __ui_icon__: ClassVar[str] = "image"
-    __ui_order__: ClassVar[int] = 3
+    __ui_order__: ClassVar[int] = 4
 
     timeout_ms: int = Field(
         default=30000,
@@ -97,11 +97,28 @@ class DebugSection(PluginConfigBase):
 
     __ui_label__: ClassVar[str] = "调试"
     __ui_icon__: ClassVar[str] = "bug"
-    __ui_order__: ClassVar[int] = 4
+    __ui_order__: ClassVar[int] = 5
 
     enabled: bool = Field(
         default=False,
         description="是否启用 /mbti-debug（或 /mbti_debug）确定性调试命令。",
+    )
+
+
+class AccessSection(PluginConfigBase):
+    """Per-group access control for AI chat."""
+
+    __ui_label__: ClassVar[str] = "访问控制"
+    __ui_icon__: ClassVar[str] = "shield"
+    __ui_order__: ClassVar[int] = 1
+
+    ai_group_ids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "允许 AI 正常聊天的群号列表。列表之外的群进入统计专用模式："
+            "只放行 /mbti 与 /mbti-debug，其他消息在进入上下文前拦截。"
+            "留空表示所有群都进入统计专用模式。"
+        ),
     )
 
 
@@ -111,6 +128,7 @@ class MBTISTatsConfig(PluginConfigBase):
     __ui_label__: ClassVar[str] = "MBTI Stats"
 
     plugin: PluginSection = Field(default_factory=PluginSection)
+    access: AccessSection = Field(default_factory=AccessSection)
     daily: DailySection = Field(default_factory=DailySection)
     announcement: AnnouncementSection = Field(default_factory=AnnouncementSection)
     render: RenderSection = Field(default_factory=RenderSection)
