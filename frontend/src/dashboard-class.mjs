@@ -142,11 +142,21 @@ export class MbtistatsDashboard {
             TF: ['T', 'F', 'X'],
             JP: ['J', 'P', 'X'],
         };
+        const traitClasses = {
+            E: 'trait-e',
+            I: 'trait-i',
+            S: 'trait-s',
+            N: 'trait-n',
+            T: 'trait-t',
+            F: 'trait-f',
+            J: 'trait-j',
+            P: 'trait-p',
+        };
 
         allDimensions.forEach(dim => {
-            const dimClass = `dim-${dim.toLowerCase()}`;
             allTraits[dim].forEach(trait => {
-                tableHTML += `<th class="${dimClass}">${dim}-${trait}</th>`;
+                const cls = traitClasses[trait] ? ` class="${traitClasses[trait]}"` : '';
+                tableHTML += `<th${cls}>${dim}-${trait}</th>`;
             });
         });
         tableHTML += '</tr></thead><tbody>';
@@ -156,10 +166,10 @@ export class MbtistatsDashboard {
             const dateStr = `${d.getMonth() + 1}-${d.getDate()}`;
             tableHTML += `<tr><td>${dateStr}</td>`;
             allDimensions.forEach(dim => {
-                const dimClass = `dim-${dim.toLowerCase()}`;
                 const dimData = record.data[dim] || {};
                 allTraits[dim].forEach(trait => {
-                    tableHTML += `<td class="${dimClass}">${dimData[trait] || 0}</td>`;
+                    const cls = traitClasses[trait] ? ` class="${traitClasses[trait]}"` : '';
+                    tableHTML += `<td${cls}>${dimData[trait] || 0}</td>`;
                 });
             });
             tableHTML += '</tr>';

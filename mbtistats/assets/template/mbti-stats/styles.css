@@ -310,55 +310,107 @@ tbody tr:nth-child(even) {
     color: #8a6a00;
 }
 
-/* 特质历史表：按 EI / SN / TF / JP 四个维度分组，组内三列同色。 */
-#trait-history-table-container th.dim-ei,
-#trait-history-table-container td.dim-ei {
-    background-color: #eaf2fb;
+/* 特质历史表：每个极各一色，X 列不染色（走默认表头/斑马纹）。 */
+#trait-history-table-container th.trait-e,
+#trait-history-table-container td.trait-e {
+    background-color: #fdf3ed;
 }
 
-#trait-history-table-container th.dim-sn,
-#trait-history-table-container td.dim-sn {
-    background-color: #edf8ec;
+#trait-history-table-container th.trait-i,
+#trait-history-table-container td.trait-i {
+    background-color: #edf4fb;
 }
 
-#trait-history-table-container th.dim-tf,
-#trait-history-table-container td.dim-tf {
-    background-color: #f6eef6;
+#trait-history-table-container th.trait-s,
+#trait-history-table-container td.trait-s {
+    background-color: #fdf8e6;
 }
 
-#trait-history-table-container th.dim-jp,
-#trait-history-table-container td.dim-jp {
-    background-color: #fdf3e7;
+#trait-history-table-container th.trait-n,
+#trait-history-table-container td.trait-n {
+    background-color: #eef8ee;
 }
 
-#trait-history-table-container tbody tr:nth-child(even) td.dim-ei {
-    background-color: #dceaf8;
+#trait-history-table-container th.trait-t,
+#trait-history-table-container td.trait-t {
+    background-color: #f1eff8;
 }
 
-#trait-history-table-container tbody tr:nth-child(even) td.dim-sn {
-    background-color: #dff0dd;
+#trait-history-table-container th.trait-f,
+#trait-history-table-container td.trait-f {
+    background-color: #fbf0f0;
 }
 
-#trait-history-table-container tbody tr:nth-child(even) td.dim-tf {
-    background-color: #ebdceb;
+#trait-history-table-container th.trait-j,
+#trait-history-table-container td.trait-j {
+    background-color: #fdf4e8;
 }
 
-#trait-history-table-container tbody tr:nth-child(even) td.dim-jp {
-    background-color: #f8e4cb;
+#trait-history-table-container th.trait-p,
+#trait-history-table-container td.trait-p {
+    background-color: #eaf4f9;
 }
 
-#trait-history-table-container th.dim-ei {
+#trait-history-table-container tbody tr:nth-child(even) td.trait-e {
+    background-color: #fbe5d7;
+}
+
+#trait-history-table-container tbody tr:nth-child(even) td.trait-i {
+    background-color: #dfeaf7;
+}
+
+#trait-history-table-container tbody tr:nth-child(even) td.trait-s {
+    background-color: #fbf0c7;
+}
+
+#trait-history-table-container tbody tr:nth-child(even) td.trait-n {
+    background-color: #dff0df;
+}
+
+#trait-history-table-container tbody tr:nth-child(even) td.trait-t {
+    background-color: #e5e1f1;
+}
+
+#trait-history-table-container tbody tr:nth-child(even) td.trait-f {
+    background-color: #f6e0e0;
+}
+
+#trait-history-table-container tbody tr:nth-child(even) td.trait-j {
+    background-color: #fbe6ce;
+}
+
+#trait-history-table-container tbody tr:nth-child(even) td.trait-p {
+    background-color: #dcebf3;
+}
+
+#trait-history-table-container th.trait-e {
+    color: #9a5a2a;
+}
+
+#trait-history-table-container th.trait-i {
     color: #3f6fa0;
 }
 
-#trait-history-table-container th.dim-sn {
+#trait-history-table-container th.trait-s {
+    color: #8a6a00;
+}
+
+#trait-history-table-container th.trait-n {
     color: #3f7a3f;
 }
 
-#trait-history-table-container th.dim-tf {
-    color: #7a4a72;
+#trait-history-table-container th.trait-t {
+    color: #5f5a8a;
 }
 
-#trait-history-table-container th.dim-jp {
+#trait-history-table-container th.trait-f {
+    color: #8a5a5a;
+}
+
+#trait-history-table-container th.trait-j {
     color: #8a5a20;
+}
+
+#trait-history-table-container th.trait-p {
+    color: #2f7080;
 }
