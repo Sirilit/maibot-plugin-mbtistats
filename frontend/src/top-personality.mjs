@@ -58,8 +58,22 @@ function createRow(types, colorMap) {
 }
 
 function createImageElement(type, color) {
+    // 单文件 HTML 没有 ../images 的虚拟站点路径，图片从 render.py 注入的 data URI map 取。
+    const imageSrc = (window.__MBTI_IMAGES__ || {})[type] || '';
+    const container = document.createElement('div');
+    container.className = 'top-personality-item';
+
+    if (!imageSrc) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'type-placeholder';
+        placeholder.style.backgroundColor = color;
+        placeholder.textContent = type;
+        container.appendChild(placeholder);
+        return container;
+    }
+
     const img = document.createElement('img');
-    img.src = `../images/${type}.png`;
+    img.src = imageSrc;
     img.alt = `${type}人格图片`;
     img.className = 'top-personality-img';
     img.onerror = function() {
@@ -70,9 +84,6 @@ function createImageElement(type, color) {
         placeholder.textContent = type;
         this.parentNode.appendChild(placeholder);
     };
-
-    const container = document.createElement('div');
-    container.className = 'top-personality-item';
     container.appendChild(img);
     return container;
 }

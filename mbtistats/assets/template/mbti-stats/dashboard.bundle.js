@@ -222,8 +222,19 @@ var MbtistatsDashboardBundle = (() => {
     return row;
   }
   function createImageElement(type, color) {
+    const imageSrc = (window.__MBTI_IMAGES__ || {})[type] || "";
+    const container = document.createElement("div");
+    container.className = "top-personality-item";
+    if (!imageSrc) {
+      const placeholder = document.createElement("div");
+      placeholder.className = "type-placeholder";
+      placeholder.style.backgroundColor = color;
+      placeholder.textContent = type;
+      container.appendChild(placeholder);
+      return container;
+    }
     const img = document.createElement("img");
-    img.src = `../images/${type}.png`;
+    img.src = imageSrc;
     img.alt = `${type}人格图片`;
     img.className = "top-personality-img";
     img.onerror = function() {
@@ -234,8 +245,6 @@ var MbtistatsDashboardBundle = (() => {
       placeholder.textContent = type;
       this.parentNode.appendChild(placeholder);
     };
-    const container = document.createElement("div");
-    container.className = "top-personality-item";
     container.appendChild(img);
     return container;
   }
