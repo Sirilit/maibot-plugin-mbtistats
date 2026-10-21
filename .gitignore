@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 .pytest_cache/
 *.log
+frontend/node_modules/
 
 # Host-generated config backups
 config_back/

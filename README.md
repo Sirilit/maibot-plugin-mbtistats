@@ -84,6 +84,18 @@ enabled = false
 - **公告入口**：每日统计和 `/mbti` 都会在统计图之后让 AI 调用 `send_announcement`；`/mbti-debug` 不调用。工具用 `ctx.send.forward` 发合并转发，开头三行写死在代码里，正文来自 `[announcement].extra`；合并转发失败时退回发送纯文本。
 - **美术可视化**：16 人格代表物件的分布图方案见 `docs/mbti-object-visualization.md`（待美术合作和素材）。
 
+## 前端源码与构建
+
+看板的 CSS/HTML 仍是 `mbtistats/assets/template/mbti-stats/` 下的独立文件；JS 的拆分源码在 `frontend/src/*.mjs`，由 esbuild 打成运行时用的 `dashboard.bundle.js`。改前端时只改 `frontend/src/`，然后：
+
+```bash
+cd frontend
+pnpm install
+pnpm build
+```
+
+不要直接手改 `dashboard.bundle.js`。运行时仍然由 `render.py` 把 CSS/JS/图片/数据内联成单文件 HTML，这是 MaiBot `ctx.render.html2png`（`page.set_content`，没有虚拟 origin）的限制；源码层面保持拆分。
+
 ## 浏览器预览
 
 ```bash
