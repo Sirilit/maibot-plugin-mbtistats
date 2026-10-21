@@ -119,7 +119,7 @@ class MBTIStatsPlugin(MaiBotPlugin):
     @staticmethod
     def _is_stats_command(text: str) -> bool:
         return bool(
-            re.match(r"^\s*(?:@\S+\s+)?/mbti(?:[-_]debug)?(?:\s|$)", text or "")
+            re.match(r"^\s*/mbti(?:[-_]debug)?(?:\s|$)", text or "")
         )
 
     @HookHandler(
@@ -349,15 +349,23 @@ class MBTIStatsPlugin(MaiBotPlugin):
         if not self.config.plugin.enabled:
             return True, None, 2
 
-        result = await self._send_stats_direct(group_id=group_id, stream_id=stream_id)
-        if result[0] and not self._is_stats_only_group(group_id):
+        result = await self._get_stats(group_id=group_id, stream_id=stream_id, platform="qq")
+        if result.get("busy"):
+            await self.ctx.send.text(str(result.get("message") or "当前已有统计在渲染。"), stream_id)
+            return True, None, 2
+        if not result.get("success"):
+            await self.ctx.send.text(f"❌ {result.get('message') or 'MBTI 统计失败。'}", stream_id)
+            return True, None, 2
+
+        await self.ctx.send.image(result["image_base64"], stream_id)
+        if not self._is_stats_only_group(group_id):
             # Keep the AI informed only in groups where the AI is active.
             await self._append_ai_context(
                 stream_id,
-                "/mbti-debug 已执行，图表已直接发送。",
+                f"/mbti-debug 已执行，图表已直接发送。{result.get('summary') or ''}",
                 source_kind="plugin:mbtistats:debug",
             )
-        return result
+        return True, None, 2
 
     async def _append_ai_context(self, stream_id: str, text: str, *, source_kind: str) -> None:
         """Record a plugin event in Maisaka context so the AI knows it happened."""
