@@ -18,6 +18,12 @@
 - [x] 容器内安装 Playwright Chromium 并实测宿主渲染
 - [x] 在真实 QQ 测试群用 `/mbti`、`/mbti-debug` 和自然语言各跑一次（用户已实测三条入口，AI 侧体验正常）
 - [x] 历史数据不进 git：`mbtistats/assets/data/` 已 ignore，部署时单独迁移
+- [x] `send_announcement` Tool：把公告封装成合并转发消息发送
+- [x] 每日统计发完图后调用公告工具
+- [x] `/mbti` 指令也调用公告工具
+- [x] 16 人格物件分布图方案文档（`docs/mbti-object-visualization.md`）
 - [ ] 确认 SnowLuma 群成员接口返回的 card/nickname 形态
 - [ ] 按需打开 daily.enabled
 - [ ] 决定是否加渲染结果缓存（同数据不重复渲染）
+- [ ] 16 人格物件素材与分布图实现（等美术合作）
+- [ ] 观察 token 消耗，决定是否需要进一步限制主动消息

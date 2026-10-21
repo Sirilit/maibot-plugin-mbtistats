@@ -26,6 +26,16 @@ from .mbtistats.render import build_html
 from .mbtistats.transform_render_data import transform_to_render_data
 
 
+_ANNOUNCEMENT_HEADER = "\n".join(
+    (
+        "「MBTI 计数菌 - 群聊统计插件」",
+        "GitHub：https://github.com/Sirilit/maibot-plugin-mbtistats",
+        "开发者：Sirilit（识启）、AllayFocalors（玛画疼）",
+    )
+)
+_ANNOUNCEMENT_SENDER = "小面包"
+
+
 class MBTIStatsPlugin(MaiBotPlugin):
     """MBTI group statistics plugin."""
 
@@ -120,6 +130,89 @@ class MBTIStatsPlugin(MaiBotPlugin):
             ],
         }
 
+    @Tool(
+        "send_announcement",
+        description=(
+            "把项目公告以合并转发消息发到当前聊天。"
+            "每日统计发完图后调用；群友问项目地址、作者或美术合作时也可以调用。"
+            "公告内容固定，不需要你改写，也不要在调用后再复述一遍。"
+        ),
+        parameters=[],
+        core_tool=True,
+    )
+    async def send_announcement(self, **kwargs: Any) -> dict[str, Any]:
+        """Send the fixed project announcement as one merged-forward message."""
+        if not self.config.announcement.enabled:
+            return {"success": False, "message": "项目公告当前未启用。"}
+        stream_id = str(kwargs.get("stream_id") or "").strip()
+        if not stream_id:
+            return {"success": False, "message": "没有拿到当前聊天流，无法发送公告。"}
+        bodies = self._announcement_nodes()
+        if not bodies:
+            return {"success": False, "message": "公告正文为空。"}
+        messages = [
+            {
+                "user_id": "",
+                "nickname": _ANNOUNCEMENT_SENDER,
+                "message_id": f"mbti_announcement_{index}",
+                "content": [{"type": "text", "content": body}],
+            }
+            for index, body in enumerate(bodies)
+        ]
+        try:
+            result = await self.ctx.send.forward(
+                messages,
+                stream_id,
+                return_details=True,
+                sync_to_maisaka_history=True,
+            )
+        except Exception:
+            self.ctx.logger.exception("发送项目公告失败: stream_id=%s", stream_id)
+            result = None
+        if result is True or (
+            isinstance(result, dict)
+            and bool(result.get("sent", result.get("success", False)))
+        ):
+            # SDK 的 send.forward 详细结果只有 sent/message_id，没有 success。
+            return {"success": True, "content": "项目公告已发送。"}
+        self.ctx.logger.warning("合并转发公告未成功，改用文本发送: %s", result)
+        try:
+            fallback_sent = await self.ctx.send.text(
+                self._announcement_text(),
+                stream_id,
+                sync_to_maisaka_history=True,
+            )
+        except Exception:
+            self.ctx.logger.exception("文本兜底发送公告失败: stream_id=%s", stream_id)
+            return {"success": False, "message": "发送公告失败，请稍后再试。"}
+        if fallback_sent is False:
+            return {"success": False, "message": "发送公告失败，请稍后再试。"}
+        return {"success": True, "content": "项目公告已发送（合并转发不可用，已改用文本）。"}
+
+    def _announcement_text(self) -> str:
+        """Full announcement text, used as a fallback when forward fails."""
+        extra = str(self.config.announcement.extra or "").strip()
+        return "\n\n".join(part for part in (_ANNOUNCEMENT_HEADER, extra) if part)
+
+    def _announcement_nodes(self) -> list[str]:
+        """Header plus one node per blank-line-separated paragraph of ``extra``."""
+        extra = str(self.config.announcement.extra or "").strip()
+        if not extra:
+            return []
+        return [
+            _ANNOUNCEMENT_HEADER,
+            *[part.strip() for part in extra.split("\n\n") if part.strip()],
+        ]
+
+    def _announcement_instruction(self) -> str:
+        """Prompt fragment that makes the AI call the fixed announcement tool."""
+        if not self.config.announcement.enabled:
+            return ""
+        return (
+            "发完统计图后，调用 send_announcement 工具，把项目公告以合并转发发到群里。"
+            "公告内容固定，不要改写，也不要在调用后再复述一遍。"
+        )
+
     @Command("mbti", pattern=r"^/mbti(?:\s|$)")
     async def mbti_command(self, **kwargs: Any):
         """Pure reminder: ask the AI to call ``mbti_stats`` itself."""
@@ -136,6 +229,7 @@ class MBTIStatsPlugin(MaiBotPlugin):
                 intent=(
                     "用户刚刚发送了 /mbti。请调用 mbti_stats 工具统计本群 MBTI 分布，"
                     "并按你的判断回复；不要凭空编造统计结果。"
+                    f"{self._announcement_instruction()}"
                 ),
                 reason="mbti_command",
                 metadata={"group_id": group_id, "source": "mbtistats"},
@@ -474,9 +568,13 @@ class MBTIStatsPlugin(MaiBotPlugin):
                 if not stream_id:
                     self.ctx.logger.warning("每日统计跳过群 %s：没有聊天流", group_id)
                     continue
+                announcement = self._announcement_instruction()
                 await self.ctx.maisaka.proactive.trigger(
                     stream_id=stream_id,
-                    intent="现在是每日 MBTI 统计时间。请调用 mbti_stats 工具统计本群 MBTI 分布并发送图表。",
+                    intent=(
+                        "现在是每日 MBTI 统计时间。请调用 mbti_stats 工具统计本群 MBTI 分布并发送图表。"
+                        f"{announcement}"
+                    ),
                     reason="mbti_daily_stats",
                     metadata={"group_id": group_id, "source": "mbtistats"},
                 )

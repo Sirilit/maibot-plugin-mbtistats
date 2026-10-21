@@ -1,18 +1,18 @@
 {
   "manifest_version": 2,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "name": "MBTI Stats",
   "description": "统计群成员的 MBTI 类型与特质分布，并把结果交给 AI 决定如何发送。",
   "author": {
     "name": "Sirilit",
-    "url": "https://github.com/Siridelta"
+    "url": "https://github.com/Sirilit"
   },
   "license": "MIT",
   "urls": {
-    "repository": "https://github.com/Siridelta/maibot-plugin-mbtistats",
-    "homepage": "https://github.com/Siridelta/maibot-plugin-mbtistats",
-    "documentation": "https://github.com/Siridelta/maibot-plugin-mbtistats#readme",
-    "issues": "https://github.com/Siridelta/maibot-plugin-mbtistats/issues"
+    "repository": "https://github.com/Sirilit/maibot-plugin-mbtistats",
+    "homepage": "https://github.com/Sirilit/maibot-plugin-mbtistats",
+    "documentation": "https://github.com/Sirilit/maibot-plugin-mbtistats#readme",
+    "issues": "https://github.com/Sirilit/maibot-plugin-mbtistats/issues"
   },
   "host_application": {
     "min_version": "1.3.0",
@@ -26,6 +26,7 @@
   "capabilities": [
     "send.text",
     "send.image",
+    "send.forward",
     "render.html2png",
     "api.call",
     "chat.get_stream_by_group_id",

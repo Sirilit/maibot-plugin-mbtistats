@@ -1,32 +1,25 @@
-# MBTI Stats 插件配置
-
 [plugin]
-# 配置 schema 版本，请勿手动修改
-config_version = "0.2.0"
-# 总开关
+config_version = "0.3.0"
 enabled = true
 
 [daily]
-# 是否每天自动触发一次统计；触发后由 AI 决定是否调用工具并发送图表
-enabled = false
-# 每日触发时间
+enabled = true
 hour = 0
 minute = 0
-# 自动统计的群号
 group_ids = [
     "639990875",
     "1075254868",
 ]
 
+[announcement]
+enabled = true
+extra = "一个小新闻（）\n最近 siri 想改进一下小面包制作统计图时的一个美术细节，现在统计图里只会在最开头处显示“本次统计最多的人格”和第一名的全身图，所以我们现在有点想把它换成一个更能代表 16 人格的版本：给每种人格选一个代表物件，比如 INTP 是小锥形瓶、INFP 是小蝴蝶、ESTP 是小墨镜，让这些物件按照真实的人数比例来自然紧凑地排成一个背景板，中心再放一段文字说明本次统计数量前 3 的人格是哪些；\n\n奈何 siri 不太会画画......所以我们正在寻找一位可以帮忙制作这些素材的老师（）如果你对小物件插画、扁平风格或者视觉设计感兴趣，欢迎在群里说一声，或者私聊小面包或者 siri（如果他在群里的话）哪怕只是帮我们出出主意，或者帮忙转告给合适的朋友也都可以！非常感谢非常感谢w"
+
 [render]
-# 单次渲染超时（毫秒）
 timeout_ms = 30000
-# 渲染视口尺寸
 viewport_width = 1050
 viewport_height = 1000
-# 其他群正在渲染时，本次工具调用最多等待多少秒
 queue_wait_seconds = 20.0
 
 [debug]
-# 是否启用 /mbti-debug（或 /mbti_debug）确定性调试命令
-enabled = true
+enabled = false

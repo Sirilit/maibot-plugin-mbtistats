@@ -6,7 +6,7 @@ from typing import ClassVar
 
 from maibot_sdk import Field, PluginConfigBase
 
-CONFIG_VERSION = "0.2.0"
+CONFIG_VERSION = "0.3.0"
 
 
 class PluginSection(PluginConfigBase):
@@ -43,12 +43,42 @@ class DailySection(PluginConfigBase):
     )
 
 
+class AnnouncementSection(PluginConfigBase):
+    """Project announcement settings."""
+
+    __ui_label__: ClassVar[str] = "公告"
+    __ui_icon__: ClassVar[str] = "megaphone"
+    __ui_order__: ClassVar[int] = 2
+
+    enabled: bool = Field(
+        default=True,
+        description="是否允许发送项目公告。",
+    )
+    extra: str = Field(
+        default=(
+            "一个小新闻（）\n"
+            "最近 siri 想改进一下小面包制作统计图时的一个美术细节，"
+            "现在统计图里只会在最开头处显示“本次统计最多的人格”和第一名的全身图，"
+            "所以我们现在有点想把它换成一个更能代表 16 人格的版本："
+            "给每种人格选一个代表物件，比如 INTP 是小锥形瓶、INFP 是小蝴蝶、ESTP 是小墨镜，"
+            "让这些物件按照真实的人数比例来自然紧凑地排成一个背景板，"
+            "中心再放一段文字说明本次统计数量前 3 的人格是哪些；\n\n"
+            "奈何 siri 不太会画画......所以我们正在寻找一位可以帮忙制作这些素材的老师（）"
+            "如果你对小物件插画、扁平风格或者视觉设计感兴趣，欢迎在群里说一声，"
+            "或者私聊小面包或者 siri（如果他在群里的话）"
+            "哪怕只是帮我们出出主意，或者帮忙转告给合适的朋友也都可以！"
+            "非常感谢非常感谢w"
+        ),
+        description="公告正文（不含开头标题、GitHub 和开发者信息）；空行会拆成合并转发的多条消息。",
+    )
+
+
 class RenderSection(PluginConfigBase):
     """Host browser rendering settings."""
 
     __ui_label__: ClassVar[str] = "渲染"
     __ui_icon__: ClassVar[str] = "image"
-    __ui_order__: ClassVar[int] = 2
+    __ui_order__: ClassVar[int] = 3
 
     timeout_ms: int = Field(
         default=30000,
@@ -67,7 +97,7 @@ class DebugSection(PluginConfigBase):
 
     __ui_label__: ClassVar[str] = "调试"
     __ui_icon__: ClassVar[str] = "bug"
-    __ui_order__: ClassVar[int] = 3
+    __ui_order__: ClassVar[int] = 4
 
     enabled: bool = Field(
         default=False,
@@ -82,6 +112,7 @@ class MBTISTatsConfig(PluginConfigBase):
 
     plugin: PluginSection = Field(default_factory=PluginSection)
     daily: DailySection = Field(default_factory=DailySection)
+    announcement: AnnouncementSection = Field(default_factory=AnnouncementSection)
     render: RenderSection = Field(default_factory=RenderSection)
     debug: DebugSection = Field(default_factory=DebugSection)
 

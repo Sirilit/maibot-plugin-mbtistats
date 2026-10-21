@@ -8,8 +8,9 @@ MaiBot 的 MBTI 群统计插件：读取群成员群名片/昵称里声明的 MB
 新版分层：
 
 - `mbti_stats` Tool：真正执行统计，返回文本 + `content_items` 图片；
-- `/mbti` Command：**只给 AI 发送纯提醒**，让 AI 自己决定是否调用工具、怎么回复；
+- `/mbti` Command：**只给 AI 发送纯提醒**，让 AI 自己决定是否调用工具、怎么回复；如果 `announcement.enabled` 为真，提醒里会让 AI 发完图后调用 `send_announcement`，公告内容和每日统计一致。
 - `/mbti-debug` / `/mbti_debug` Command：确定性调试入口，直接出图发送；执行后把“已执行”事件写回 Maisaka 上下文，让 AI 知道这次是调试命令触发的。该命令由 `[debug].enabled` 控制，默认关闭。
+- `send_announcement` Tool：把项目公告以**合并转发**消息发到当前聊天；开头标题、GitHub、开发者由代码写死，正文来自 `[announcement].extra`，AI 不需要改写。
 
 这样正常路径由 AI 手操；调试/降级路径不经过 AI 决策，但会留下 AI 可见的上下文痕迹。
 
@@ -17,7 +18,7 @@ MaiBot 的 MBTI 群统计插件：读取群成员群名片/昵称里声明的 MB
 
 ```text
 _manifest.json            # Manifest v2，含 capabilities
-config.toml               # 运行时配置（[plugin] / [daily] / [render]）
+config.toml               # 运行时配置（[plugin] / [daily] / [announcement] / [render] / [debug]）
 plugin.py                 # 入口：@Tool、@Command、数据、并发、定时
 mbtistats/
   analyze.py              # 昵称 -> MBTI 类型/特质统计（纯函数）
@@ -35,14 +36,20 @@ scripts/
 
 ```toml
 [plugin]
-config_version = "0.2.0"
+config_version = "0.3.0"
 enabled = true
 
 [daily]
-enabled = false
+enabled = true
 hour = 0
 minute = 0
 group_ids = ["639990875", "1075254868"]
+
+[announcement]
+enabled = true
+# 开头标题、GitHub、开发者由代码写死；空行会拆成合并转发的多条消息
+extra = """一个小新闻（）
+...（完整正文见 config.toml）"""
 
 [render]
 timeout_ms = 30000
@@ -54,7 +61,9 @@ queue_wait_seconds = 20.0
 enabled = false
 ```
 
-- `daily.enabled` 默认关闭；打开后每天到点通过 `ctx.maisaka.proactive.trigger` 提醒 AI，AI 再决定是否调用 `mbti_stats`。
+- `daily.enabled` 当前为 `true`（默认 `false`）；打开后每天到点通过 `ctx.maisaka.proactive.trigger` 提醒 AI，AI 再决定是否调用 `mbti_stats`。如果 `announcement.enabled` 为真，每日统计的 intent 会要求 AI 发完图后调用 `send_announcement`。
+- `announcement.enabled` 控制是否允许发送项目公告；公告开头三行（标题、GitHub、开发者）写死在 `plugin.py` 的 `_ANNOUNCEMENT_HEADER`，后面的正文在 `announcement.extra`。
+- `announcement.extra` 里的空行会拆成合并转发里的多条消息；在群里看到的是一条可展开的转发记录，不是一堵长文字。
 - `debug.enabled` 默认关闭；打开后才允许 `/mbti-debug` / `/mbti_debug` 直接出图。
 - `queue_wait_seconds` 是异群并发时的等待上限；超时 Tool 返回 `busy=true`，不会无限阻塞到 60 秒 RPC 超时。
 - `config_version` 是 SDK 的配置 schema 版本，不要手改。
@@ -66,6 +75,10 @@ enabled = false
 - **渲染**：`ctx.render.html2png` 的底层是 `page.set_content`，没有虚拟 origin 或 `page.route`。因此 `render.py` 把 CSS、ECharts、图片 base64、JSON 全部内联成单文件 HTML；`allow_network=False` 也能完整出图。
 - **并发**：全局一个渲染锁；同群请求用 `_inflight` 合并为一个任务；异群最多等 `queue_wait_seconds`，超时返回 busy。禁止多个 MBTI 渲染同时跑。
 - **宿主浏览器**：容器内已安装 Playwright Chromium 到 `/MaiMBot/data/playwright-browsers`（挂载到宿主机 `data/playwright-browsers`），重启容器后仍可用。若换机器部署，需要先执行一次 `python -m playwright install chromium`，并把浏览器放到该目录或让渲染服务自动下载。
+
+- **定时任务**：`_daily_loop` 只负责到点 `proactive.trigger`；不做独立的倒计时提醒。
+- **公告入口**：每日统计和 `/mbti` 都会在统计图之后让 AI 调用 `send_announcement`；`/mbti-debug` 不调用。工具用 `ctx.send.forward` 发合并转发，开头三行写死在代码里，正文来自 `[announcement].extra`；合并转发失败时退回发送纯文本。
+- **美术可视化**：16 人格代表物件的分布图方案见 `docs/mbti-object-visualization.md`（待美术合作和素材）。
 
 ## 浏览器预览
 
