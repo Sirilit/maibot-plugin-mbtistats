@@ -277,9 +277,21 @@ tbody tr:nth-child(even) {
     background-color: #fdf6e0;
 }
 
-#history-table-container th.col-other,
-#history-table-container td.col-other {
-    background-color: #f7f7f7;
+/* 有颜色的列也要保留隔行深浅，否则只有日期列在跳。 */
+#history-table-container tbody tr:nth-child(even) td.col-nf {
+    background-color: #dcefe4;
+}
+
+#history-table-container tbody tr:nth-child(even) td.col-nt {
+    background-color: #e9dcf5;
+}
+
+#history-table-container tbody tr:nth-child(even) td.col-sj {
+    background-color: #dbe8f7;
+}
+
+#history-table-container tbody tr:nth-child(even) td.col-sp {
+    background-color: #f9edcb;
 }
 
 #history-table-container th.col-nf {
@@ -298,6 +310,55 @@ tbody tr:nth-child(even) {
     color: #8a6a00;
 }
 
-#history-table-container th.col-other {
-    color: #777;
+/* 特质历史表：按 EI / SN / TF / JP 四个维度分组，组内三列同色。 */
+#trait-history-table-container th.dim-ei,
+#trait-history-table-container td.dim-ei {
+    background-color: #eaf2fb;
+}
+
+#trait-history-table-container th.dim-sn,
+#trait-history-table-container td.dim-sn {
+    background-color: #edf8ec;
+}
+
+#trait-history-table-container th.dim-tf,
+#trait-history-table-container td.dim-tf {
+    background-color: #f6eef6;
+}
+
+#trait-history-table-container th.dim-jp,
+#trait-history-table-container td.dim-jp {
+    background-color: #fdf3e7;
+}
+
+#trait-history-table-container tbody tr:nth-child(even) td.dim-ei {
+    background-color: #dceaf8;
+}
+
+#trait-history-table-container tbody tr:nth-child(even) td.dim-sn {
+    background-color: #dff0dd;
+}
+
+#trait-history-table-container tbody tr:nth-child(even) td.dim-tf {
+    background-color: #ebdceb;
+}
+
+#trait-history-table-container tbody tr:nth-child(even) td.dim-jp {
+    background-color: #f8e4cb;
+}
+
+#trait-history-table-container th.dim-ei {
+    color: #3f6fa0;
+}
+
+#trait-history-table-container th.dim-sn {
+    color: #3f7a3f;
+}
+
+#trait-history-table-container th.dim-tf {
+    color: #7a4a72;
+}
+
+#trait-history-table-container th.dim-jp {
+    color: #8a5a20;
 }

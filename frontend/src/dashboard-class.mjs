@@ -94,17 +94,19 @@ export class MbtistatsDashboard {
         let tableHTML = '<table>';
         tableHTML += '<thead><tr><th>日期</th>';
 
-        const presentTypes = new Set(this.typeHistoryData.flatMap(record =>
+        const historyTypes = new Set(this.typeHistoryData.flatMap(record =>
             record.data.filter(item => item.value > 0).map(item => item.name)
         ));
-        // 已知类型按 mbtiConfig 的顺序（绿→紫→蓝→黄），未知/模糊类型排在最后。
+        // 16 个已知类型始终显示（即使当前 0 人）；未知/模糊类型追加在最后。
         const allTypes = [
-            ...this.mbtiConfig.map(item => item.type).filter(type => presentTypes.has(type)),
-            ...[...presentTypes].filter(type => !this.colorMap[type]).sort(),
+            ...this.mbtiConfig.map(item => item.type),
+            ...[...historyTypes].filter(type => !this.colorMap[type]).sort(),
         ];
 
         allTypes.forEach(type => {
-            tableHTML += `<th class="col-${this.typeGroup(type)}">${type}</th>`;
+            const group = this.typeGroup(type);
+            const cls = group === 'other' ? '' : ` class="col-${group}"`;
+            tableHTML += `<th${cls}>${type}</th>`;
         });
         tableHTML += '</tr></thead><tbody>';
 
@@ -114,7 +116,9 @@ export class MbtistatsDashboard {
             tableHTML += `<tr><td>${dateStr}</td>`;
             allTypes.forEach(type => {
                 const item = record.data.find(x => x.name === type);
-                tableHTML += `<td class="col-${this.typeGroup(type)}">${item ? item.value : 0}</td>`;
+                const group = this.typeGroup(type);
+                const cls = group === 'other' ? '' : ` class="col-${group}"`;
+                tableHTML += `<td${cls}>${item ? item.value : 0}</td>`;
             });
             tableHTML += '</tr>';
         });
@@ -140,8 +144,9 @@ export class MbtistatsDashboard {
         };
 
         allDimensions.forEach(dim => {
+            const dimClass = `dim-${dim.toLowerCase()}`;
             allTraits[dim].forEach(trait => {
-                tableHTML += `<th>${dim}-${trait}</th>`;
+                tableHTML += `<th class="${dimClass}">${dim}-${trait}</th>`;
             });
         });
         tableHTML += '</tr></thead><tbody>';
@@ -151,9 +156,10 @@ export class MbtistatsDashboard {
             const dateStr = `${d.getMonth() + 1}-${d.getDate()}`;
             tableHTML += `<tr><td>${dateStr}</td>`;
             allDimensions.forEach(dim => {
+                const dimClass = `dim-${dim.toLowerCase()}`;
                 const dimData = record.data[dim] || {};
                 allTraits[dim].forEach(trait => {
-                    tableHTML += `<td>${dimData[trait] || 0}</td>`;
+                    tableHTML += `<td class="${dimClass}">${dimData[trait] || 0}</td>`;
                 });
             });
             tableHTML += '</tr>';
