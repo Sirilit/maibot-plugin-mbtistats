@@ -44,12 +44,12 @@ export class MbtistatsDashboard {
         this.traitTableContainer = document.getElementById('trait-history-table-container');
 
         this.mbtiConfig = [
-            // NT分析家 (紫色系)
-            { type: "INTP", color: "#E8D9FF" }, { type: "ENTP", color: "#D469FF" },
-            { type: "INTJ", color: "#C79FF3" }, { type: "ENTJ", color: "#A14BFF" },
             // NF外交家 (绿色系)
             { type: "INFP", color: "#A9D18E" }, { type: "ENFP", color: "#70AD47" },
             { type: "INFJ", color: "#548235" }, { type: "ENFJ", color: "#385723" },
+            // NT分析家 (紫色系)
+            { type: "INTP", color: "#E8D9FF" }, { type: "ENTP", color: "#D469FF" },
+            { type: "INTJ", color: "#C79FF3" }, { type: "ENTJ", color: "#A14BFF" },
             // SJ守护者 (蓝色系)
             { type: "ISTJ", color: "#2E75B6" }, { type: "ESTJ", color: "#9DC3E6" },
             { type: "ISFJ", color: "#BDD7EE" }, { type: "ESFJ", color: "#DEEBF7" },
@@ -91,9 +91,14 @@ export class MbtistatsDashboard {
         let tableHTML = '<table>';
         tableHTML += '<thead><tr><th>日期</th>';
 
-        const allTypes = [...new Set(this.typeHistoryData.flatMap(record =>
+        const presentTypes = new Set(this.typeHistoryData.flatMap(record =>
             record.data.filter(item => item.value > 0).map(item => item.name)
-        ))].sort();
+        ));
+        // 已知类型按 mbtiConfig 的顺序（绿→紫→蓝→黄），未知/模糊类型排在最后。
+        const allTypes = [
+            ...this.mbtiConfig.map(item => item.type).filter(type => presentTypes.has(type)),
+            ...[...presentTypes].filter(type => !this.colorMap[type]).sort(),
+        ];
 
         allTypes.forEach(type => {
             tableHTML += `<th>${type}</th>`;

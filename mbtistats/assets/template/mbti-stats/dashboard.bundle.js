@@ -64,16 +64,16 @@ var MbtistatsDashboardBundle = (() => {
       this.tableContainer = document.getElementById("history-table-container");
       this.traitTableContainer = document.getElementById("trait-history-table-container");
       this.mbtiConfig = [
-        // NT分析家 (紫色系)
-        { type: "INTP", color: "#E8D9FF" },
-        { type: "ENTP", color: "#D469FF" },
-        { type: "INTJ", color: "#C79FF3" },
-        { type: "ENTJ", color: "#A14BFF" },
         // NF外交家 (绿色系)
         { type: "INFP", color: "#A9D18E" },
         { type: "ENFP", color: "#70AD47" },
         { type: "INFJ", color: "#548235" },
         { type: "ENFJ", color: "#385723" },
+        // NT分析家 (紫色系)
+        { type: "INTP", color: "#E8D9FF" },
+        { type: "ENTP", color: "#D469FF" },
+        { type: "INTJ", color: "#C79FF3" },
+        { type: "ENTJ", color: "#A14BFF" },
         // SJ守护者 (蓝色系)
         { type: "ISTJ", color: "#2E75B6" },
         { type: "ESTJ", color: "#9DC3E6" },
@@ -109,9 +109,13 @@ var MbtistatsDashboardBundle = (() => {
       if (!this.typeHistoryData || this.typeHistoryData.length === 0) return;
       let tableHTML = "<table>";
       tableHTML += "<thead><tr><th>日期</th>";
-      const allTypes = [...new Set(this.typeHistoryData.flatMap(
+      const presentTypes = new Set(this.typeHistoryData.flatMap(
         (record) => record.data.filter((item) => item.value > 0).map((item) => item.name)
-      ))].sort();
+      ));
+      const allTypes = [
+        ...this.mbtiConfig.map((item) => item.type).filter((type) => presentTypes.has(type)),
+        ...[...presentTypes].filter((type) => !this.colorMap[type]).sort()
+      ];
       allTypes.forEach((type) => {
         tableHTML += `<th>${type}</th>`;
       });
@@ -656,14 +660,14 @@ var MbtistatsDashboardBundle = (() => {
     });
     const allPersonalities = this.mbtiConfig.map((item) => item.type);
     const colorGroups = {
-      "分析家": ["INTJ", "INTP", "ENTJ", "ENTP"],
       "外交家": ["INFJ", "INFP", "ENFJ", "ENFP"],
+      "分析家": ["INTJ", "INTP", "ENTJ", "ENTP"],
       "守护者": ["ISTJ", "ISFJ", "ESTJ", "ESFJ"],
       "探险家": ["ISTP", "ISFP", "ESTP", "ESFP"]
     };
     const groupColorMap = {
-      "分析家": "#9b85c1",
       "外交家": "#70AD47",
+      "分析家": "#9b85c1",
       "守护者": "#5293D0",
       "探险家": "#FFB703"
     };
@@ -780,16 +784,16 @@ var MbtistatsDashboardBundle = (() => {
       });
       const type16LegendRows = [
         [
-          "INTP",
-          "ENTP",
-          "INTJ",
-          "ENTJ",
-          // 分析家
           "INFP",
           "ENFP",
           "INFJ",
-          "ENFJ"
+          "ENFJ",
           // 外交家
+          "INTP",
+          "ENTP",
+          "INTJ",
+          "ENTJ"
+          // 分析家
         ],
         [
           "ISTJ",

@@ -354,14 +354,14 @@ MbtistatsDashboard.prototype.renderTrendCharts = function() {
 
     const allPersonalities = this.mbtiConfig.map(item => item.type);
     const colorGroups = {
-        "分析家": ["INTJ", "INTP", "ENTJ", "ENTP"],
         "外交家": ["INFJ", "INFP", "ENFJ", "ENFP"],
+        "分析家": ["INTJ", "INTP", "ENTJ", "ENTP"],
         "守护者": ["ISTJ", "ISFJ", "ESTJ", "ESFJ"],
         "探险家": ["ISTP", "ISFP", "ESTP", "ESFP"],
     };
     const groupColorMap = {
-        "分析家": "#9b85c1",
         "外交家": "#70AD47",
+        "分析家": "#9b85c1",
         "守护者": "#5293D0",
         "探险家": "#FFB703",
     };
@@ -458,8 +458,8 @@ MbtistatsDashboard.prototype.renderTrendCharts = function() {
         // 将图例拆成 2 行（每行 8 个，按大类分组），避免出现 1/2 分页。
         const type16LegendRows = [
             [
-                "INTP", "ENTP", "INTJ", "ENTJ",  // 分析家
                 "INFP", "ENFP", "INFJ", "ENFJ", // 外交家
+                "INTP", "ENTP", "INTJ", "ENTJ",  // 分析家
             ],
             [
                 "ISTJ", "ESTJ", "ISFJ", "ESFJ", // 守护者
